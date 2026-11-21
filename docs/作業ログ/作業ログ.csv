@@ -4,3 +4,4 @@
 2026-11-22,LOG-0003,作業ログと指摘一覧をMarkdownからCSVへ移行,"AGENTS.md; docs/作業ログ/作業ログ.csv; docs/指摘一覧/指摘一覧.csv",2,推定,DeepAI,GPT-6 Luna,,,,取得不可,"推論・承認待ち・ユーザー入力待ちを除外。トークン利用量は本実行の内訳を確認できないため記録不可。"
 2026-11-22,LOG-0004,Gitleaksワークフローと秘密情報向け.gitignoreの導入,".github/workflows/gitleaks.yml; .gitignore",10,推定,DeepAI,GPT-6 Luna,,,,取得不可,"全履歴と作業ディレクトリをGitleaks 8.30.1でスキャンし検出なし。推論・承認待ち・ユーザー入力待ちを除外。トークン利用量は取得不可。"
 2026-11-22,LOG-0005,Markdownlintの設定・CI導入,".markdownlint-cli2.jsonc; .github/workflows/markdownlint.yml; AGENTS.md",8,推定,DeepAI,GPT-6 Luna,,,,取得不可,"全18件のMarkdownをmarkdownlint-cli2 v0.24.0で検査し違反0件。推論・承認待ち・ユーザー入力待ちを除外。トークン利用量は取得不可。"
+2026-11-22,LOG-0006,確定した開発構成を基本設計に記載しAGENTS.mdから参照,"docs/設計書/基本設計/README.md; AGENTS.md",5,推定,DeepAI,GPT-6 Luna,,,,取得不可,"Java 21、Spring Boot+Maven、HTML+TypeScript・Vite・Vitest、PostgreSQLを採用構成として明記。未指定のバージョン・導入状況は断定せず。推論・承認待ち・ユーザー入力待ちを除外。トークン利用量は取得不可。"
