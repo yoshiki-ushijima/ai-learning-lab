@@ -1,0 +1,720 @@
+<!doctype html>
+<html lang="ja">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>S-005 日報詳細 基本設計</title><style>
+:root { color-scheme: light; --ink:#20324a; --muted:#586c82; --line:#d8e1eb; --accent:#185c95; }
+* { box-sizing:border-box; }
+body { margin:0; background:#eef2f6; color:var(--ink); font:15px/1.8 "Yu Gothic UI","Meiryo",sans-serif; }
+a { color:var(--accent); text-underline-offset:3px; }
+.document { max-width:1160px; margin:28px auto; padding:44px 52px; background:white; border:1px solid var(--line); border-radius:12px; }
+.document-header { border-bottom:3px solid var(--accent); padding-bottom:24px; }
+.eyebrow { margin:0 0 8px; color:var(--accent); font-size:13px; font-weight:700; letter-spacing:.08em; }
+h1 { margin:0; font-size:27px; line-height:1.5; }
+.meta { margin:18px 0 0; display:flex; flex-wrap:wrap; gap:10px 26px; font-size:14px; color:var(--muted); }
+.toolbar { display:flex; flex-wrap:wrap; gap:8px 20px; margin:18px 0 0; }
+.layout { display:grid; grid-template-columns:190px minmax(0,1fr); gap:32px; margin-top:28px; }
+.layout-single { grid-template-columns:minmax(0,1fr); }
+.toc { align-self:start; position:sticky; top:24px; padding:16px; background:#f5f8fb; border:1px solid var(--line); border-radius:8px; }
+.toc strong { display:block; margin-bottom:8px; }
+.toc a { display:block; margin:6px 0; font-size:14px; }
+main { min-width:0; }
+h2 { font-size:20px; border-bottom:1px solid var(--line); padding-bottom:8px; margin:32px 0 14px; }
+main>h2:first-child { margin-top:0; }
+h3 { font-size:17px; padding:7px 12px; background:#edf4fa; border-left:3px solid var(--accent); margin:24px 0 12px; }
+p { margin:10px 0 14px; }
+ul { padding-left:22px; margin:12px 0 18px; }
+li { padding:3px 0; }
+table { width:100%; border-collapse:collapse; margin:12px 0 24px; font-size:14px; }
+th,td { text-align:left; vertical-align:top; padding:10px 12px; border:1px solid var(--line); }
+th { background:#edf2f7; font-weight:700; }
+td.group { width:140px; background:#f8fafc; }
+code { font:13px/1.6 Consolas,monospace; background:#eef2f6; padding:2px 4px; border-radius:3px; }
+footer { border-top:1px solid var(--line); margin-top:32px; padding-top:16px; color:var(--muted); font-size:13px; }
+@media(max-width:760px) { .document{margin:0;padding:24px 18px;border:0;border-radius:0;} .layout{display:block;} .toc{position:static;margin-bottom:24px;} h1{font-size:23px;} }
+@media print { @page { size:A4; margin:14mm; } body{background:white;font-size:10pt;} .document{max-width:none;margin:0;padding:0;border:0;border-radius:0;} .toolbar,.toc{display:none;} .layout{display:block;margin-top:18px;} h1{font-size:20pt;} h2,h3{break-after:avoid;} tr{break-inside:avoid;} table{font-size:9pt;} a{color:inherit;text-decoration:none;} }
+
+/* 仕様とモックは同じファイル内のタブで切り替える。 */
+.view-tabs { display:flex; gap:8px; border-bottom:1px solid var(--line); margin:24px 0 0; }
+.view-tab { appearance:none; border:1px solid var(--line); border-bottom:0; background:#f3f6fa; color:var(--muted); font:inherit; font-weight:700; padding:10px 30px; border-radius:8px 8px 0 0; cursor:pointer; }
+.view-tab[aria-selected="true"] { background:var(--accent); color:white; border-color:var(--accent); }
+.view-tab:focus-visible { outline:3px solid #e49a20; outline-offset:3px; }
+[role="tabpanel"][hidden] { display:none; }
+.mock-panel { margin-top:24px; }
+.document[data-view="mock"] { max-width:1440px; }
+#mock-surface { display:block; min-width:0; }
+@media(max-width:760px) { .view-tab{flex:1;padding:10px 20px;} }
+@media print { .view-tabs{display:none;} .document[data-view="mock"]{max-width:none;} .mock-panel{margin-top:16px;} }
+
+.table-scroll{max-width:100%;overflow-x:auto;} .screen-spec{margin-top:36px;} .screen-spec-heading{border-top:3px solid var(--line);padding-top:18px;} .primary-tabs{flex-wrap:wrap;} .view-tab{padding:10px 22px;} ol{padding-left:24px;} [role="tabpanel"]:focus-visible{outline:3px solid #e49a20;outline-offset:3px;} @media print{.table-scroll{overflow:visible;}}
+</style></head>
+<body>
+<article class="document" data-view="spec">
+  <header class="document-header">
+    <p class="eyebrow">基本設計</p><h1>S-005 日報詳細 基本設計</h1>
+    <div class="meta"><span>仕様・入力チェック・業務ルール・モック</span></div>
+    <nav class="toolbar" aria-label="関連する設計"><a href="../日報検索/基本設計.html#screen-list">S-002 日報カレンダー・一覧</a> · <a href="../画面遷移図.html">画面遷移図</a></nav>
+  </header>
+  <div class="view-tabs primary-tabs" role="tablist" aria-label="基本設計の内容" data-tabs="primary"><button type="button" class="view-tab" role="tab" id="tab-spec" aria-controls="spec" aria-selected="true" tabindex="0">仕様</button>
+<button type="button" class="view-tab" role="tab" id="tab-input" aria-controls="input" aria-selected="false" tabindex="-1">入力チェック</button>
+<button type="button" class="view-tab" role="tab" id="tab-rules" aria-controls="rules" aria-selected="false" tabindex="-1">業務ルール</button>
+<button type="button" class="view-tab" role="tab" id="tab-mock" aria-controls="mock" aria-selected="false" tabindex="-1">モック</button></div>
+  <section id="spec" role="tabpanel" aria-labelledby="tab-spec" tabindex="0"><div class="layout"><aside class="toc" aria-label="目次"><strong>目次</strong>
+
+<a href="#spec-2">業務の流れ</a>
+<a href="#spec-3">分岐・例外</a>
+
+<a href="#spec-5">画面と仕様</a>
+<a href="#display-policy">表示の共通ルール</a>
+</aside><main><h2 id="spec-2">業務の流れ</h2>
+<p>カレンダー・一覧で日報を選ぶと、日報IDを使って保存済みのヘッダ・明細を取得する。編集できる日報は編集画面へ進める。「一覧へ戻る」では一覧を再取得する。</p>
+<h2 id="spec-3">分岐・例外</h2>
+<p>存在しない日報や閲覧権限のない日報の内容は表示しない。</p>
+<h2 id="display-policy">表示の共通ルール</h2>
+<p>全画面のI/O区分・表示形式・揃え方・未設定値・長文の扱いは<a href="../画面表示共通ルール.html">画面表示共通ルール</a>に従う。各画面の項目表でI/O・表示方式・揃え方を指定する。</p>
+
+<h2 id="spec-5">画面と仕様</h2>
+<p>S-005 日報詳細 · <a href="#mock-detail">モック</a></p>
+<p>日報IDの扱いは<a href="#input">入力チェック</a>、閲覧権限と一覧への復帰は<a href="#rules">業務ルール</a>を参照する。</p>
+<section class="screen-spec" id="screen-detail"><h2 class="screen-spec-heading">S-005 詳細画面仕様</h2>
+<h2 id="detail-section-0">S-005 日報詳細画面</h2>
+
+<h3 id="detail-section-1">目的</h3>
+
+<p>日報の内容を参照する。社員本人の下書き・差戻しの日報では編集画面へ遷移できる。</p>
+
+<h3 id="detail-section-2">主要項目</h3>
+
+<div class="table-scroll"><table><thead><tr><th scope="col">区分</th><th scope="col">項目</th><th scope="col">I/O</th><th scope="col">表示方式</th><th scope="col">揃え方</th></tr></thead><tbody><tr><td class="group">上部サマリー</td><td>実勤務時間</td><td>O</td><td>H:mm（例：8:05）、分2桁、秒なし。0分は0:00</td><td>右詰め</td></tr>
+<tr><td class="group">上部サマリー</td><td>作業時間合計</td><td>O</td><td>H:mm（例：8:05）、分2桁、秒なし。0分は0:00</td><td>右詰め</td></tr>
+<tr><td class="group">上部サマリー</td><td>休日区分</td><td>O</td><td>名称を表示</td><td>左詰め</td></tr>
+<tr><td class="group">日報ヘッダ</td><td>日付</td><td>O</td><td>yyyy/MM/dd（例：2026/06/03）</td><td>中央揃え</td></tr>
+<tr><td class="group">日報ヘッダ</td><td>社員名</td><td>O</td><td>名称を表示</td><td>左詰め</td></tr>
+<tr><td class="group">日報ヘッダ</td><td>所属グループ</td><td>O</td><td>名称を表示</td><td>左詰め</td></tr>
+<tr><td class="group">日報ヘッダ</td><td>休憩区分</td><td>O</td><td>名称を表示</td><td>左詰め</td></tr>
+<tr><td class="group">日報ヘッダ</td><td>勤務区分</td><td>O</td><td>名称を表示</td><td>左詰め</td></tr>
+<tr><td class="group">日報ヘッダ</td><td>勤務開始時刻</td><td>O</td><td>HH:mm（例：09:05）、24時間制、秒なし</td><td>中央揃え</td></tr>
+<tr><td class="group">日報ヘッダ</td><td>勤務終了時刻</td><td>O</td><td>HH:mm（例：09:05）、24時間制、秒なし</td><td>中央揃え</td></tr>
+<tr><td class="group">日報ヘッダ</td><td>自動算出休憩時間</td><td>O</td><td>H:mm（例：8:05）、分2桁、秒なし。0分は0:00</td><td>右詰め</td></tr>
+<tr><td class="group">日報ヘッダ</td><td>通常勤務</td><td>O</td><td>H:mm（例：8:05）、分2桁、秒なし。0分は0:00</td><td>右詰め</td></tr>
+<tr><td class="group">日報ヘッダ</td><td>残業</td><td>O</td><td>H:mm（例：8:05）、分2桁、秒なし。0分は0:00</td><td>右詰め</td></tr>
+<tr><td class="group">日報ヘッダ</td><td>深夜</td><td>O</td><td>H:mm（例：8:05）、分2桁、秒なし。0分は0:00</td><td>右詰め</td></tr>
+<tr><td class="group">日報ヘッダ</td><td>備考</td><td>O</td><td>文字列。改行を保持し、長文を折り返す</td><td>左詰め</td></tr></tbody></table></div>
+
+<div class="table-scroll"><table><thead><tr><th scope="col">区分</th><th scope="col">項目</th><th scope="col">I/O</th><th scope="col">表示方式</th><th scope="col">揃え方</th></tr></thead><tbody><tr><td class="group">作業明細</td><td>案件</td><td>O</td><td>名称を表示</td><td>左詰め</td></tr>
+<tr><td class="group">作業明細</td><td>作業分類</td><td>O</td><td>名称を表示</td><td>左詰め</td></tr>
+<tr><td class="group">作業明細</td><td>作業時間</td><td>O</td><td>H:mm（例：8:05）、分2桁、秒なし。0分は0:00</td><td>右詰め</td></tr></tbody></table></div>
+
+<h3 id="detail-approval-audit">承認状態と監査情報</h3>
+<p>一覧と同じ既存データの承認状態・監査情報を参照専用で表示する。</p><div class="table-scroll"><table><thead><tr><th>項目</th><th>I/O</th><th>表示方式</th><th>揃え方</th></tr></thead><tbody><tr><td>承認状態</td><td>O</td><td>下書き・承認待ち・差戻し・承認済み</td><td>左詰め</td></tr><tr><td>提出日時</td><td>O</td><td>日本時間のMM/dd HH:mm。未設定は—</td><td>左詰め</td></tr><tr><td>承認者</td><td>O</td><td>保存済みの名称。未設定は—</td><td>左詰め</td></tr><tr><td>承認日時</td><td>O</td><td>日本時間のyyyy/MM/dd HH:mm。未設定は—</td><td>左詰め</td></tr></tbody></table></div>
+<h3 id="detail-section-4">表示制御</h3>
+
+<ul><li>社員は自分の日報のみ参照できる</li>
+<li>上長は閲覧対象グループの日報のみ参照できる</li>
+<li>管理者は全社員の日報を参照できる</li>
+<li>社員本人の日報のうち、下書き（DRAFT）・差戻し（REJECTED）に編集操作を表示する。承認待ち（PENDING）・承認済み（APPROVED）は参照のみとする</li></ul>
+
+</section><section id="ui-regions-work-155"><h2>詳細の領域別表示（WORK-155）</h2><p>モックに合わせ、実勤務時間・作業時間合計・休日区分は上部サマリーだけに表示し、日報ヘッダへ重複表示しない。ヘッダ項目の順序と表示名はモックに合わせる。戻る・編集はタイトルと同じヘッダの操作領域へ置く。採用済みの承認状態・監査4項目は参照専用の追加表示として保持する。APIの保存項目・時間計算・権限は変更しない。</p></section></main></div></section>
+  <section id="input" role="tabpanel" aria-labelledby="tab-input" tabindex="0" hidden><div class="layout layout-single"><main><h2 id="input-1">参照対象</h2>
+
+<p>編集用の入力項目は持たない。画面遷移で渡された日報IDに対応するデータを取得する。存在しない日報は404、権限外の日報は403とし、日報の内容を表示しない。</p></main></div></section>
+  <section id="rules" role="tabpanel" aria-labelledby="tab-rules" tabindex="0" hidden><div class="layout layout-single"><main><p><a href="../日報検索/基本設計.html#rules-0">閲覧権限</a>・<a href="../日報検索/基本設計.html#historical-group-access">異動後の日報閲覧</a>・<a href="../日報検索/基本設計.html#auth-response-generation">認証切れと遅延応答</a>の共通ルールを適用する。</p>
+<h2 id="rules-3">詳細参照と導線</h2>
+
+<ul><li>日報ヘッダと全作業明細を参照専用で表示する。</li>
+<li>社員本人の日報のうち、下書き・差戻しに編集導線を表示する。承認待ち・承認済みは編集できない。</li>
+<li>一覧へ戻る操作を用意する。</li>
+</ul><ul><li>詳細の取得途中に更新が発生しても、ヘッダと明細に新旧の内容を混在させない。</li><li>詳細から一覧へ戻るときは検索条件・表示月・一覧位置を保持して再取得する。ブラウザー再読み込み時は当月から開始する。</li></ul></main></div></section>
+  <section id="mock" class="mock-panel" role="tabpanel" aria-labelledby="tab-mock" tabindex="0" hidden><div id="mock-detail"><div class="mock-surface"><template shadowrootmode="open">
+
+<style>
+    :host {
+      --bg: #f4f6f8;
+      --panel: #ffffff;
+      --line: #d7dde5;
+      --line-strong: #aeb8c5;
+      --text: #1f2933;
+      --muted: #627386;
+      --head: #eef2f6;
+      --accent: #1f6feb;
+      --accent-dark: #174ea6;
+      --danger: #b42318;
+      --danger-bg: #fff1f0;
+      --warn: #8a5a00;
+      --warn-bg: #fff8db;
+      --ok: #176b43;
+      --ok-bg: #e9f7ef;
+      --disabled: #e4e8ee;
+      --shadow: 0 1px 2px rgba(16, 24, 40, 0.08);
+      font-family: "Segoe UI", "Yu Gothic UI", "Meiryo", sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    :host {
+      display: block;
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-size: 14px;
+      line-height: 1.5;
+    }
+
+    a {
+      color: inherit;
+      text-decoration: none;
+    }
+
+    .app {
+      display: grid;
+      grid-template-columns: 248px minmax(0, 1fr);
+      min-height: 100vh;
+    }
+
+    .sidebar {
+      background: #26313f;
+      color: #eef3f8;
+      padding: 18px 14px;
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      overflow: auto;
+    }
+
+    .brand {
+      font-size: 18px;
+      font-weight: 700;
+      margin: 0 0 4px;
+    }
+
+    .subtitle {
+      color: #b8c4d2;
+      font-size: 12px;
+      margin-bottom: 18px;
+    }
+
+    .nav-group {
+      margin-top: 18px;
+    }
+
+    .nav-title {
+      color: #b8c4d2;
+      font-size: 12px;
+      font-weight: 700;
+      margin: 0 0 8px;
+    }
+
+    .nav-link {
+      display: block;
+      padding: 8px 10px;
+      border-radius: 6px;
+      color: #eef3f8;
+      margin-bottom: 4px;
+    }
+
+    .nav-link:hover {
+      background: rgba(255,255,255,0.11);
+    }
+
+    .main {
+      min-width: 0;
+    }
+
+    .topbar {
+      height: 56px;
+      background: var(--panel);
+      border-bottom: 1px solid var(--line);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 24px;
+      position: sticky;
+      top: 0;
+      z-index: 3;
+    }
+
+    .userbox {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .content {
+      padding: 24px;
+      max-width: 1360px;
+      margin: 0 auto;
+    }
+
+    .screen {
+      margin-bottom: 40px;
+      scroll-margin-top: 72px;
+    }
+
+    .screen-header {
+      display: flex;
+      justify-content: space-between;
+      gap: 16px;
+      align-items: flex-end;
+      margin-bottom: 12px;
+    }
+
+    .screen-title {
+      margin: 0;
+      font-size: 22px;
+      letter-spacing: 0;
+    }
+
+    .screen-note {
+      color: var(--muted);
+      margin: 4px 0 0;
+    }
+
+    .toolbar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      box-shadow: var(--shadow);
+      margin-bottom: 12px;
+    }
+
+    .panel-title {
+      margin: 0;
+      padding: 10px 14px;
+      border-bottom: 1px solid var(--line);
+      background: var(--head);
+      font-size: 15px;
+      font-weight: 700;
+    }
+
+    .panel-body {
+      padding: 14px;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .grid.two {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .grid.three {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .field {
+      min-width: 0;
+    }
+
+    label {
+      display: block;
+      font-size: 12px;
+      font-weight: 700;
+      color: #344054;
+      margin-bottom: 4px;
+    }
+
+    input, select, textarea {
+      width: 100%;
+      border: 1px solid var(--line-strong);
+      border-radius: 4px;
+      padding: 8px 9px;
+      min-height: 36px;
+      background: #fff;
+      color: var(--text);
+      font: inherit;
+    }
+
+    textarea {
+      resize: vertical;
+      min-height: 74px;
+    }
+
+    input[disabled], select[disabled], textarea[disabled] {
+      background: var(--disabled);
+      color: #667085;
+    }
+
+    .btn {
+      border: 1px solid var(--line-strong);
+      background: #fff;
+      color: var(--text);
+      min-height: 36px;
+      padding: 7px 12px;
+      border-radius: 4px;
+      font-weight: 700;
+      cursor: default;
+      white-space: nowrap;
+    }
+
+    .btn.primary {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #fff;
+    }
+
+    .btn.primary.dark {
+      background: var(--accent-dark);
+      border-color: var(--accent-dark);
+    }
+
+    .btn.danger {
+      background: var(--danger);
+      border-color: var(--danger);
+      color: #fff;
+    }
+
+    .btn.ghost {
+      background: transparent;
+    }
+
+    .btn.disabled {
+      background: var(--disabled);
+      color: #667085;
+      border-color: var(--line);
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      table-layout: fixed;
+    }
+
+    th, td {
+      border-bottom: 1px solid var(--line);
+      padding: 9px 10px;
+      text-align: left;
+      vertical-align: middle;
+      word-break: break-word;
+    }
+
+    th {
+      background: var(--head);
+      color: #344054;
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    tr:last-child td {
+      border-bottom: 0;
+    }
+
+    .num {
+      text-align: right;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .status {
+      display: inline-flex;
+      align-items: center;
+      min-height: 24px;
+      padding: 2px 8px;
+      border-radius: 999px;
+      font-weight: 700;
+      font-size: 12px;
+      border: 1px solid transparent;
+    }
+
+    .summary {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+
+    .metric {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      padding: 12px;
+      box-shadow: var(--shadow);
+    }
+
+    .metric-label {
+      color: var(--muted);
+      font-size: 12px;
+      margin-bottom: 4px;
+    }
+
+    .metric-value {
+      font-size: 22px;
+      font-weight: 700;
+      line-height: 1.2;
+    }
+
+    .tabs {
+      display: flex;
+      gap: 4px;
+      border-bottom: 1px solid var(--line);
+      margin-bottom: 12px;
+    }
+
+    .tab {
+      padding: 9px 12px;
+      border: 1px solid transparent;
+      border-bottom: 0;
+      border-radius: 6px 6px 0 0;
+      color: var(--muted);
+      font-weight: 700;
+    }
+
+    .tab.active {
+      color: var(--accent-dark);
+      background: #fff;
+      border-color: var(--line);
+    }
+
+    .calendar {
+      display: grid;
+      grid-template-columns: repeat(7, minmax(0, 1fr));
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      overflow: hidden;
+      background: var(--panel);
+    }
+
+    .calendar-head,
+    .calendar-day {
+      min-height: 48px;
+      border-right: 1px solid var(--line);
+      border-bottom: 1px solid var(--line);
+      padding: 8px;
+    }
+
+    .calendar-head {
+      min-height: 36px;
+      background: var(--head);
+      font-size: 12px;
+      font-weight: 700;
+      color: #344054;
+    }
+
+    .calendar-day:nth-child(7n) {
+      border-right: 0;
+    }
+
+    .day-num {
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+
+    .day-meta {
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .info-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 10px 14px;
+    }
+
+    .info-item {
+      min-width: 0;
+    }
+
+    .info-label {
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .info-value {
+      margin-top: 2px;
+      font-weight: 700;
+    }
+
+    .alert {
+      border: 1px solid #f1d36b;
+      background: var(--warn-bg);
+      color: #604000;
+      border-radius: 6px;
+      padding: 10px 12px;
+      margin-bottom: 12px;
+    }
+
+    .error {
+      border-color: #f5b5ae;
+      background: var(--danger-bg);
+      color: var(--danger);
+    }
+
+    .login-wrap {
+      display: grid;
+      grid-template-columns: minmax(280px, 420px) minmax(0, 1fr);
+      gap: 24px;
+      align-items: stretch;
+    }
+
+    .login-panel {
+      padding: 22px;
+    }
+
+    .mock-note {
+      background: #eaf1ff;
+      border: 1px solid #b9cffc;
+      color: #174ea6;
+      border-radius: 6px;
+      padding: 10px 12px;
+      margin-bottom: 16px;
+    }
+
+    @media (max-width: 980px) {
+      .app {
+        grid-template-columns: 1fr;
+      }
+
+      .sidebar {
+        position: static;
+        height: auto;
+      }
+
+      .topbar {
+        position: static;
+      }
+
+      .grid,
+      .grid.two,
+      .grid.three,
+      .summary,
+      .login-wrap {
+        grid-template-columns: 1fr;
+      }
+
+      .screen-header {
+        align-items: stretch;
+        flex-direction: column;
+      }
+    }
+
+@media print { .toolbar { display:none; } .content { padding:0; } }
+
+/* 画面表示共通ルール */
+.display-number,.num{ text-align:right; font-variant-numeric:tabular-nums; white-space:nowrap; }
+.display-temporal{ text-align:center; font-variant-numeric:tabular-nums; white-space:nowrap; }
+input,select,textarea{ text-align:left; }
+.info-value:not(.display-number):not(.display-temporal){ text-align:left; overflow-wrap:anywhere; }
+textarea{ white-space:pre-wrap; overflow-wrap:anywhere; }
+.day-num{ text-align:right; } .day-meta{ text-align:left; font-variant-numeric:tabular-nums; } .day-meta.display-number{ text-align:right; }
+
+/* WORK-153: 共通ルールに従う曜日中央・日時の途中折返し防止。製品CSSは参照しない。 */
+.calendar-head { text-align:center; }
+#list .panel-body:has(>table), #detail .panel-body:has(>table) { overflow-x:auto; }
+#list table { min-width:1180px; }
+#detail table { min-width:500px; }
+#list td:nth-child(8), #list td:nth-child(10), #list th:nth-child(8), #list th:nth-child(10) { text-align:left; white-space:nowrap; font-variant-numeric:tabular-nums; }
+</style>
+<div class="content"><p class="mock-note">画面構成と表示優先度を確認する静的モックです。</p><section id="detail" class="screen">
+          <div class="screen-header">
+            <div>
+              <h1 class="screen-title">S-005 日報詳細画面</h1>
+              <p class="screen-note">権限範囲内の日報を参照し、社員本人の日報のうち、下書き・差戻しに編集導線を表示する。承認待ち・承認済みは編集できない。</p>
+            </div>
+            <div class="toolbar">
+              <button class="btn">一覧へ戻る</button>
+              <button class="btn">編集する</button>
+            </div>
+          </div>
+          <div class="summary">
+
+            <div class="metric"><div class="metric-label">実勤務時間</div><div class="metric-value display-number">8:00</div></div>
+            <div class="metric"><div class="metric-label">作業時間合計</div><div class="metric-value display-number">8:00</div></div>
+            <div class="metric"><div class="metric-label">休日区分</div><div class="metric-value">通常勤務</div></div>
+          </div>
+          <div class="panel">
+            <h2 class="panel-title">日報ヘッダ</h2>
+            <div class="panel-body">
+              <div class="grid">
+                <div class="field"><label>日付</label><input value="2026/06/03" disabled="" class="display-temporal"></div>
+                <div class="field"><label>社員名</label><input value="山田 太郎" disabled=""></div>
+                <div class="field"><label>所属グループ</label><input value="第一開発グループ" disabled=""></div>
+                <div class="field"><label>休憩区分</label><input value="標準休憩 12:00〜13:00" disabled=""></div>
+                <div class="field"><label>勤務区分</label><input value="勤務区分A 09:00〜18:00" disabled=""></div>
+                <div class="field"><label>勤務開始時刻</label><input value="09:00" disabled="" class="display-temporal"></div>
+                <div class="field"><label>勤務終了時刻</label><input value="18:00" disabled="" class="display-temporal"></div>
+                <div class="field"><label>自動算出休憩時間</label><input value="1:00" disabled="" class="display-number"></div>
+                <div class="field"><label>通常勤務</label><input value="8:00" disabled="" class="display-number"></div>
+                <div class="field"><label>残業</label><input value="0:00" disabled="" class="display-number"></div>
+                <div class="field"><label>深夜</label><input value="0:00" disabled="" class="display-number"></div>
+
+
+
+              </div>
+              <div class="field" style="margin-top:12px"><label>備考</label><textarea disabled="">顧客向け設計レビュー準備。</textarea></div>
+            </div>
+          </div>
+          <div class="panel">
+            <h2 class="panel-title">作業明細</h2>
+            <div class="panel-body">
+              <table>
+                <thead><tr><th>案件</th><th>作業分類</th><th class="num">作業時間</th></tr></thead>
+                <tbody>
+                  <tr><td>案件A</td><td>設計</td><td class="num">5:00</td></tr>
+                  <tr><td>案件B</td><td>レビュー</td><td class="num">3:00</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+        </section></div>
+
+
+
+</template></div></div></section>
+  <footer>印刷時は選択中のタブを出力します。</footer>
+</article>
+<script>
+// 同一ファイル内の仕様・入力・業務ルール・モックとURLを同期する。
+for (const surface of document.querySelectorAll('.mock-surface')) {
+  if (!surface.shadowRoot) {
+    const template = surface.querySelector('template');
+    const shadow = surface.attachShadow({ mode: 'open' });
+    shadow.append(template.content.cloneNode(true));
+    template.remove();
+  }
+}
+const primary = document.querySelector('[data-tabs="primary"]');
+function selectGroup(group, selected) {
+  if (!group) return;
+  for (const tab of group.querySelectorAll('[role="tab"]')) {
+    const active = tab.getAttribute('aria-controls') === selected;
+    tab.setAttribute('aria-selected', String(active));
+    tab.tabIndex = active ? 0 : -1;
+    document.getElementById(tab.getAttribute('aria-controls')).hidden = !active;
+  }
+}
+function showHash() {
+  const hash = location.hash.slice(1);
+  const view = hash.startsWith('mock') ? 'mock' : hash.startsWith('input') ? 'input' : hash.startsWith('rules') ? 'rules' : 'spec';
+  selectGroup(primary, view);
+  document.querySelector('.document').dataset.view = view;
+}
+{
+  const group = primary;
+  const tabs = [...group.querySelectorAll('[role="tab"]')];
+  function select(tab) { history.replaceState(null, '', '#' + tab.getAttribute('aria-controls')); showHash(); }
+  tabs.forEach((tab, index) => {
+    tab.addEventListener('click', () => select(tab));
+    tab.addEventListener('keydown', event => {
+      if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
+      event.preventDefault();
+      const target = event.key === 'Home' ? 0 : event.key === 'End' ? tabs.length - 1 : (index + (event.key === 'ArrowRight' ? 1 : -1) + tabs.length) % tabs.length;
+      tabs[target].focus(); select(tabs[target]);
+    });
+  });
+}
+window.addEventListener('hashchange', showHash);
+showHash();
+</script>
+</body></html>

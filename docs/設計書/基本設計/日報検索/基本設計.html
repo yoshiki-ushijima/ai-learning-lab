@@ -1,0 +1,792 @@
+<!doctype html>
+<html lang="ja">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>S-002 日報カレンダー・一覧 基本設計</title><style>
+:root { color-scheme: light; --ink:#20324a; --muted:#586c82; --line:#d8e1eb; --accent:#185c95; }
+* { box-sizing:border-box; }
+body { margin:0; background:#eef2f6; color:var(--ink); font:15px/1.8 "Yu Gothic UI","Meiryo",sans-serif; }
+a { color:var(--accent); text-underline-offset:3px; }
+.document { max-width:1160px; margin:28px auto; padding:44px 52px; background:white; border:1px solid var(--line); border-radius:12px; }
+.document-header { border-bottom:3px solid var(--accent); padding-bottom:24px; }
+.eyebrow { margin:0 0 8px; color:var(--accent); font-size:13px; font-weight:700; letter-spacing:.08em; }
+h1 { margin:0; font-size:27px; line-height:1.5; }
+.meta { margin:18px 0 0; display:flex; flex-wrap:wrap; gap:10px 26px; font-size:14px; color:var(--muted); }
+.toolbar { display:flex; flex-wrap:wrap; gap:8px 20px; margin:18px 0 0; }
+.layout { display:grid; grid-template-columns:190px minmax(0,1fr); gap:32px; margin-top:28px; }
+.layout-single { grid-template-columns:minmax(0,1fr); }
+.toc { align-self:start; position:sticky; top:24px; padding:16px; background:#f5f8fb; border:1px solid var(--line); border-radius:8px; }
+.toc strong { display:block; margin-bottom:8px; }
+.toc a { display:block; margin:6px 0; font-size:14px; }
+main { min-width:0; }
+h2 { font-size:20px; border-bottom:1px solid var(--line); padding-bottom:8px; margin:32px 0 14px; }
+main>h2:first-child { margin-top:0; }
+h3 { font-size:17px; padding:7px 12px; background:#edf4fa; border-left:3px solid var(--accent); margin:24px 0 12px; }
+p { margin:10px 0 14px; }
+ul { padding-left:22px; margin:12px 0 18px; }
+li { padding:3px 0; }
+table { width:100%; border-collapse:collapse; margin:12px 0 24px; font-size:14px; }
+th,td { text-align:left; vertical-align:top; padding:10px 12px; border:1px solid var(--line); }
+th { background:#edf2f7; font-weight:700; }
+td.group { width:140px; background:#f8fafc; }
+code { font:13px/1.6 Consolas,monospace; background:#eef2f6; padding:2px 4px; border-radius:3px; }
+footer { border-top:1px solid var(--line); margin-top:32px; padding-top:16px; color:var(--muted); font-size:13px; }
+@media(max-width:760px) { .document{margin:0;padding:24px 18px;border:0;border-radius:0;} .layout{display:block;} .toc{position:static;margin-bottom:24px;} h1{font-size:23px;} }
+@media print { @page { size:A4; margin:14mm; } body{background:white;font-size:10pt;} .document{max-width:none;margin:0;padding:0;border:0;border-radius:0;} .toolbar,.toc{display:none;} .layout{display:block;margin-top:18px;} h1{font-size:20pt;} h2,h3{break-after:avoid;} tr{break-inside:avoid;} table{font-size:9pt;} a{color:inherit;text-decoration:none;} }
+
+/* 仕様とモックは同じファイル内のタブで切り替える。 */
+.view-tabs { display:flex; gap:8px; border-bottom:1px solid var(--line); margin:24px 0 0; }
+.view-tab { appearance:none; border:1px solid var(--line); border-bottom:0; background:#f3f6fa; color:var(--muted); font:inherit; font-weight:700; padding:10px 30px; border-radius:8px 8px 0 0; cursor:pointer; }
+.view-tab[aria-selected="true"] { background:var(--accent); color:white; border-color:var(--accent); }
+.view-tab:focus-visible { outline:3px solid #e49a20; outline-offset:3px; }
+[role="tabpanel"][hidden] { display:none; }
+.mock-panel { margin-top:24px; }
+.document[data-view="mock"] { max-width:1440px; }
+#mock-surface { display:block; min-width:0; }
+@media(max-width:760px) { .view-tab{flex:1;padding:10px 20px;} }
+@media print { .view-tabs{display:none;} .document[data-view="mock"]{max-width:none;} .mock-panel{margin-top:16px;} }
+
+.table-scroll{max-width:100%;overflow-x:auto;} .screen-spec{margin-top:36px;} .screen-spec-heading{border-top:3px solid var(--line);padding-top:18px;} .primary-tabs{flex-wrap:wrap;} .view-tab{padding:10px 22px;} ol{padding-left:24px;} [role="tabpanel"]:focus-visible{outline:3px solid #e49a20;outline-offset:3px;} @media print{.table-scroll{overflow:visible;}}
+</style></head>
+<body>
+<article class="document" data-view="spec">
+  <header class="document-header">
+    <p class="eyebrow">基本設計</p><h1>S-002 日報カレンダー・一覧 基本設計</h1>
+    <div class="meta"><span>仕様・入力チェック・業務ルール・モック</span></div>
+    <nav class="toolbar" aria-label="関連する設計"><a href="../日報詳細/基本設計.html#screen-detail">S-005 日報詳細</a> · <a href="../画面遷移図.html">画面遷移図</a></nav>
+  </header>
+  <div class="view-tabs primary-tabs" role="tablist" aria-label="基本設計の内容" data-tabs="primary"><button type="button" class="view-tab" role="tab" id="tab-spec" aria-controls="spec" aria-selected="true" tabindex="0">仕様</button>
+<button type="button" class="view-tab" role="tab" id="tab-input" aria-controls="input" aria-selected="false" tabindex="-1">入力チェック</button>
+<button type="button" class="view-tab" role="tab" id="tab-rules" aria-controls="rules" aria-selected="false" tabindex="-1">業務ルール</button>
+<button type="button" class="view-tab" role="tab" id="tab-mock" aria-controls="mock" aria-selected="false" tabindex="-1">モック</button></div>
+  <section id="spec" role="tabpanel" aria-labelledby="tab-spec" tabindex="0"><div class="layout"><aside class="toc" aria-label="目次"><strong>目次</strong>
+
+<a href="#spec-2">業務の流れ</a>
+<a href="#spec-3">分岐・例外</a>
+
+<a href="#spec-5">画面と仕様</a>
+<a href="#display-policy">表示の共通ルール</a>
+</aside><main><h2 id="spec-2">業務の流れ</h2>
+
+<ol><li>社員の初期表示では本人の当月日報をカレンダー・一覧で表示する。</li>
+<li>年月・日付範囲・社員・休日区分を指定して検索する。</li>
+<li>一覧またはカレンダーから日報を選び、詳細を参照する。</li>
+<li>社員本人は未登録の日付から登録へ、下書き・差戻しの登録済み日報から編集へ進む。承認待ち・承認済みは参照のみとする。</li>
+<li>詳細からカレンダー・一覧へ戻る。</li></ol>
+
+<h2 id="spec-3">分岐・例外</h2>
+
+<ul><li>該当データがない場合は空の一覧を表示する。</li>
+<li>権限外・存在しない日報の内容は表示しない。</li>
+<li>不正な検索条件はエラーを表示する。</li></ul>
+
+<h2 id="display-policy">表示の共通ルール</h2>
+<p>全画面のI/O区分・表示形式・揃え方・未設定値・長文の扱いは<a href="../画面表示共通ルール.html">画面表示共通ルール</a>に従う。各画面の項目表でI/O・表示方式・揃え方を指定する。</p>
+
+<h2 id="spec-5">画面と仕様</h2>
+<p>S-002 日報カレンダー・一覧 · <a href="#mock-list">モック</a></p>
+<p>入力の仕様は<a href="#input">入力チェック</a>、処理・権限・計算の仕様は<a href="#rules">業務ルール一覧</a>を参照する。</p>
+<section class="screen-spec" id="screen-list"><h2 class="screen-spec-heading">S-002 カレンダー・一覧画面仕様</h2>
+<h2 id="list-section-0">S-002 日報カレンダー・一覧画面</h2>
+
+<h3 id="list-section-1">目的</h3>
+
+<p>権限に応じて日報をカレンダーまたは一覧で確認し、対象日付の日報へ遷移する。</p>
+
+<h3 id="list-section-2">主要項目</h3>
+
+<div class="table-scroll"><table><thead><tr><th scope="col">区分</th><th scope="col">項目</th><th scope="col">I/O</th><th scope="col">表示方式</th><th scope="col">揃え方</th></tr></thead><tbody><tr><td class="group">検索条件</td><td>対象年月</td><td>I/O</td><td>yyyy/MM（例：2026/06）。年月入力はカレンダー型</td><td>中央揃え</td></tr>
+<tr><td class="group">検索条件</td><td>日付範囲</td><td>I/O</td><td>開始・終了ともyyyy/MM/dd。日付入力はカレンダー型</td><td>中央揃え</td></tr>
+<tr><td class="group">検索条件</td><td>社員</td><td>I/O</td><td>名称を表示。選択項目もコードではなく名称を表示</td><td>左詰め</td></tr>
+<tr><td class="group">検索条件</td><td>承認状態</td><td>I/O</td><td>すべて・下書き・承認待ち・差戻し・承認済みを名称で選択する</td><td>左詰め</td></tr>
+<tr><td class="group">検索条件</td><td>休日区分</td><td>I/O</td><td>名称を表示。選択項目もコードではなく名称を表示</td><td>左詰め</td></tr></tbody></table></div>
+
+<div class="table-scroll"><table><thead><tr><th scope="col">区分</th><th scope="col">項目</th><th scope="col">I/O</th><th scope="col">表示方式</th><th scope="col">揃え方</th></tr></thead><tbody><tr><td class="group">カレンダー項目</td><td>日付</td><td>O</td><td>d（例：3）。対象年月はyyyy/MM</td><td>右詰め</td></tr>
+<tr><td class="group">カレンダー項目</td><td>休日区分</td><td>O</td><td>名称を表示</td><td>左詰め</td></tr>
+<tr><td class="group">カレンダー項目</td><td>実勤務時間</td><td>O</td><td>H:mm（例：8:05）、分2桁、秒なし。0分は0:00</td><td>右詰め</td></tr></tbody></table></div>
+
+<div class="table-scroll"><table><thead><tr><th scope="col">区分</th><th scope="col">項目</th><th scope="col">I/O</th><th scope="col">表示方式</th><th scope="col">揃え方</th></tr></thead><tbody><tr><td class="group">一覧項目</td><td>日付</td><td>O</td><td>yyyy/MM/dd（例：2026/06/03）</td><td>中央揃え</td></tr>
+<tr><td class="group">一覧項目</td><td>グループ</td><td>O</td><td>名称を表示</td><td>左詰め</td></tr>
+<tr><td class="group">一覧項目</td><td>社員名</td><td>O</td><td>名称を表示</td><td>左詰め</td></tr>
+<tr><td class="group">一覧項目</td><td>休日区分</td><td>O</td><td>名称を表示</td><td>左詰め</td></tr>
+<tr><td class="group">一覧項目</td><td>勤務時間</td><td>O</td><td>H:mm（例：8:05）、分2桁、秒なし。0分は0:00</td><td>右詰め</td></tr>
+<tr><td class="group">一覧項目</td><td>作業時間合計</td><td>O</td><td>H:mm（例：8:05）、分2桁、秒なし。0分は0:00</td><td>右詰め</td></tr></tbody></table></div>
+
+<div class="table-scroll"><table><thead><tr><th scope="col">区分</th><th scope="col">項目</th><th scope="col">I/O</th><th scope="col">表示方式</th><th scope="col">揃え方</th></tr></thead><tbody>
+<tr><td>一覧項目</td><td>承認状態</td><td>O</td><td>下書き・承認待ち・差戻し・承認済みの名称</td><td>左詰め</td></tr>
+<tr><td>一覧項目</td><td>提出日時</td><td>O</td><td>既存データの日時を日本時間のMM/dd HH:mmで表示。未設定は—</td><td>左詰め</td></tr>
+<tr><td>一覧項目</td><td>承認者</td><td>O</td><td>既存データの名称。未設定は—</td><td>左詰め</td></tr>
+<tr><td>一覧項目</td><td>承認日時</td><td>O</td><td>既存データの日時を日本時間のyyyy/MM/dd HH:mmで表示。未設定は—</td><td>左詰め</td></tr>
+</tbody></table></div>
+<p>承認状態と監査情報は既存データの参照に使用する。提出・承認・差戻しを実行する業務操作は本機能に含めない。<a href="../DB設計/DB定義/日報ヘッダ（daily_reports）.md">日報ヘッダの既存状態・監査情報の互換性</a>に従う。</p>
+<h3 id="list-section-4">表示制御</h3>
+
+<ul><li>社員は自分の当月日報を初期表示し、月カレンダーと当月日報一覧を表示する</li>
+<li>社員はカレンダーの登録可能な未登録日から登録へ進む。登録済み日報はカレンダーの表示項目または一覧の日付から詳細を開く。本人の下書き・差戻しの日報は一覧の「編集」または詳細の「編集する」から編集へ進む</li>
+<li>社員向け表示では、グループのプルダウン検索条件を表示しない</li>
+<li>上長は閲覧対象グループの日報のみ表示する</li>
+<li>管理者は全社員の日報を表示する</li>
+<li>社員のみ日報登録画面への遷移を表示する</li>
+<li>社員本人の日報のうち、下書き（DRAFT）・差戻し（REJECTED）に編集操作を表示する。承認待ち（PENDING）・承認済み（APPROVED）は参照のみとする</li></ul>
+
+</section>
+<section id="ui-alignment-work-153"><h2>UI比較による表示具体化（WORK-153）</h2><p>監査日時の提出・承認は左詰めの例外とする。一覧の操作列は編集可能なら「編集」、それ以外は「詳細」の1ボタンとし、日付からも詳細を開く（ユーザー回答で採用）。カレンダーの文字には内枠を付けず、未登録日は日番号を登録操作とする。操作名・キーボード・フォーカス表示を保つ。再取得はエラーからの復旧時に表示し、通常取得後は非表示。期間指定・表示月と全月表示は採用済み仕様として維持する。共通の幅・余白・980px以下の1列配置はモックに合わせ、狭幅の表は局所スクロールで文字の途中折返しを防ぐ。</p></section></main></div></section>
+  <section id="input" role="tabpanel" aria-labelledby="tab-input" tabindex="0" hidden><div class="layout"><aside class="toc" aria-label="目次"><strong>目次</strong><a href="#input-0">検索条件</a>
+</aside><main><p>検索条件の入力チェックを定義する。</p>
+
+<h2 id="input-0">検索条件</h2>
+
+<div class="table-scroll"><table><thead><tr><th scope="col">項目</th><th scope="col">チェック</th></tr></thead><tbody><tr><td>対象年月</td><td>yyyy-MM形式</td></tr>
+<tr><td>日付範囲</td><td>yyyy-MM-dd形式。開始・終了は両方指定または両方省略。開始日は終了日以前で、開始日と終了日を含めた日数が366日以内（2026-01-01〜2027-01-01は366日で許可、〜2027-01-02は367日で拒否）</td></tr>
+<tr><td>社員</td><td>利用者の閲覧権限範囲内</td></tr>
+<tr><td>休日区分</td><td>定義済みの休日区分コード</td></tr></tbody></table></div>
+
+<p>日付・年月はカレンダーまたは年月選択を基本とし、社員本人の画面ではグループ選択を表示しない。</p>
+
+<p>承認状態の検索値はDRAFT・PENDING・REJECTED・APPROVEDのいずれかとし、未指定はすべてとする。定義外の値は入力エラー（400）とする。</p>
+</main></div></section>
+  <section id="rules" role="tabpanel" aria-labelledby="tab-rules" tabindex="0" hidden><div class="layout"><aside class="toc" aria-label="目次"><strong>目次</strong><a href="#rules-0">権限ルール</a>
+<a href="#rules-1">検索業務ルール</a>
+<a href="#rules-2">初期表示と導線</a>
+</aside><main><p>検索・一覧・カレンダー・詳細参照の共通ルールを定義する。</p>
+
+<h2 id="rules-0">権限ルール</h2>
+
+<div class="table-scroll"><table><thead><tr><th scope="col">ルールID</th><th scope="col">対象</th><th scope="col">ルール</th><th scope="col">エラー時</th></tr></thead><tbody><tr><td>V-AUTH-002</td><td>社員</td><td>他社員の日報は参照、編集できない</td><td>権限エラー</td></tr>
+<tr><td>V-AUTH-003</td><td>上長</td><td>閲覧対象グループの日報のみ参照できる</td><td>権限エラー</td></tr>
+<tr><td>V-AUTH-004</td><td>上長</td><td>閲覧対象グループ以外の日報は参照できない</td><td>権限エラー</td></tr>
+<tr><td>V-AUTH-005</td><td>管理者</td><td>全社員の日報を参照できる</td><td>なし</td></tr></tbody></table></div>
+
+<h2 id="rules-1">検索業務ルール</h2>
+
+<div class="table-scroll"><table><thead><tr><th scope="col">ルールID</th><th scope="col">対象</th><th scope="col">ルール</th><th scope="col">エラー時</th></tr></thead><tbody><tr><td>V-OUT-001</td><td>日報一覧</td><td>利用者の権限範囲内の日報のみ検索結果に表示する</td><td>権限外データを表示しない</td></tr></tbody></table></div>
+
+<h2 id="rules-2">初期表示と導線</h2>
+
+<ul><li>社員は自分の当月日報をカレンダー・一覧で確認する。</li>
+<li>カレンダーの登録可能な未登録日から登録へ、登録済みの日報から詳細へ進む。本人の下書き・差戻しの日報は一覧の「編集」または詳細の「編集する」から編集へ進む。</li>
+<li>社員本人の日報のうち、下書き・差戻しに編集導線を表示する。承認待ち・承認済みは編集できない。</li>
+<li>該当データがない場合は空の一覧を表示する。</li></ul>
+
+<h2 id="calendar-range-and-filter">検索期間・絞り込みとカレンダー</h2>
+<ul><li>日付範囲が複数月にまたがる場合、一覧には検索対象の全期間を表示し、カレンダーには選択した月を表示する。カレンダーの表示月を切り替えても一覧の検索期間は変更しない。</li><li>休日区分・承認状態等で絞り込み中は、未登録日の登録導線を表示しない。条件に合わない登録済み日を未登録として扱わない。絞り込みを解除して対象月の全件取得に成功した後に、未登録日の登録導線を表示する。</li></ul>
+<h2 id="historical-group-access">異動後の日報閲覧と社員選択肢</h2>
+<ul><li>過去の日報は、日報登録時点の所属グループを基準に閲覧権限を判定する。</li><li>社員選択肢は現在の所属を基準とする。旧所属の上長の選択肢には異動済み社員を表示しない。</li><li>旧所属の上長は、社員を指定しない検索から、閲覧権限を持つ旧所属在籍時の日報を参照できる。</li></ul>
+<h2 id="group-option-name-policy">グループ選択肢の候補と名称</h2>
+<ul><li>閲覧権限の範囲内で、現在の社員情報と過去の日報の両方からグループを集め、同じグループIDを1件にまとめる。</li><li>名称は現在の社員情報を優先する。同じグループIDで名称が異なる場合は更新日時が新しい情報を使い、同時刻の場合は利用者IDの昇順で決める。</li><li>現在の社員情報がなければ、最新の日報の名称を使う。同じ日付の日報が複数ある場合は日報IDの昇順で決める。</li><li>名称の選択により閲覧権限の範囲を広げない。</li></ul>
+<h2 id="search-query-error-policy">検索条件・エラー・表示の細部</h2>
+<ul><li>検索条件の空文字、同じ条件の重複指定、未定義の条件名は入力エラーとし、入力値を自動補正しない。</li><li>形式が有効な社員・グループIDの権限外指定と存在しない指定は同じ権限エラーとする。各条件が有効でも組合せに一致する日報がない場合は正常な空一覧を表示する。</li><li>一覧は日付の降順、同じ日付は社員IDの昇順、さらに同じ場合は日報IDの昇順で表示する。</li><li>備考の空文字は未設定として—を表示する。不正なAPI応答を正常な空一覧として扱わず、安全なエラー案内と再取得手段を表示する。</li><li>入力項目に結び付かないエラーは画面全体に表示する。エラーの文言と確認順は詳細設計IO-005/IO-006に従う。</li><li>社員のグループ選択肢APIの直接利用は権限エラーとする。</li></ul>
+<h2 id="auth-response-generation">認証切れと遅延応答</h2>
+<ul><li>同じ画面を使っている間に届いた認証切れは、古い検索要求の応答でも即時にログイン画面へ戻す。その後に届く検索結果も表示しない。</li><li>画面破棄後、または別の利用者で再ログインした後に届いた旧画面の応答は破棄し、現在の画面へ影響させない。</li><li>ログアウト開始前の先行要求の応答は破棄し、ログアウト処理自身の結果で画面を切り替える。</li></ul>
+<h2 id="search-final-behavior">入力・取得・復帰の具体化方針</h2>
+<ul><li>年月入力は選択月の開始日・終了日へ変換し、日付範囲入力と切り替える。上長・管理者の初期期間も当月とする。</li><li>無効化済みの休日区分も、過去の日報を確認するため検索・選択肢で扱う。</li><li>グループ変更で社員条件が合わなくなった場合は社員選択を解除する。選択肢は必要な取得がすべて成功してから適用する。</li><li>ログアウトで認証切れ以外の失敗が発生した場合は検索条件を保持し、一覧を再取得してから操作を再開する。</li><li>一覧へ戻るときの復帰条件は、<a href="../日報詳細/基本設計.html#rules-3">日報詳細の業務ルール</a>を参照する。</li></ul>
+</main></div></section>
+  <section id="mock" class="mock-panel" role="tabpanel" aria-labelledby="tab-mock" tabindex="0" hidden><div id="mock-list"><div class="mock-surface"><template shadowrootmode="open">
+
+<style>
+    :host {
+      --bg: #f4f6f8;
+      --panel: #ffffff;
+      --line: #d7dde5;
+      --line-strong: #aeb8c5;
+      --text: #1f2933;
+      --muted: #627386;
+      --head: #eef2f6;
+      --accent: #1f6feb;
+      --accent-dark: #174ea6;
+      --danger: #b42318;
+      --danger-bg: #fff1f0;
+      --warn: #8a5a00;
+      --warn-bg: #fff8db;
+      --ok: #176b43;
+      --ok-bg: #e9f7ef;
+      --disabled: #e4e8ee;
+      --shadow: 0 1px 2px rgba(16, 24, 40, 0.08);
+      font-family: "Segoe UI", "Yu Gothic UI", "Meiryo", sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    :host {
+      display: block;
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-size: 14px;
+      line-height: 1.5;
+    }
+
+    a {
+      color: inherit;
+      text-decoration: none;
+    }
+
+    .app {
+      display: grid;
+      grid-template-columns: 248px minmax(0, 1fr);
+      min-height: 100vh;
+    }
+
+    .sidebar {
+      background: #26313f;
+      color: #eef3f8;
+      padding: 18px 14px;
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      overflow: auto;
+    }
+
+    .brand {
+      font-size: 18px;
+      font-weight: 700;
+      margin: 0 0 4px;
+    }
+
+    .subtitle {
+      color: #b8c4d2;
+      font-size: 12px;
+      margin-bottom: 18px;
+    }
+
+    .nav-group {
+      margin-top: 18px;
+    }
+
+    .nav-title {
+      color: #b8c4d2;
+      font-size: 12px;
+      font-weight: 700;
+      margin: 0 0 8px;
+    }
+
+    .nav-link {
+      display: block;
+      padding: 8px 10px;
+      border-radius: 6px;
+      color: #eef3f8;
+      margin-bottom: 4px;
+    }
+
+    .nav-link:hover {
+      background: rgba(255,255,255,0.11);
+    }
+
+    .main {
+      min-width: 0;
+    }
+
+    .topbar {
+      height: 56px;
+      background: var(--panel);
+      border-bottom: 1px solid var(--line);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 24px;
+      position: sticky;
+      top: 0;
+      z-index: 3;
+    }
+
+    .userbox {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .content {
+      padding: 24px;
+      max-width: 1360px;
+      margin: 0 auto;
+    }
+
+    .screen {
+      margin-bottom: 40px;
+      scroll-margin-top: 72px;
+    }
+
+    .screen-header {
+      display: flex;
+      justify-content: space-between;
+      gap: 16px;
+      align-items: flex-end;
+      margin-bottom: 12px;
+    }
+
+    .screen-title {
+      margin: 0;
+      font-size: 22px;
+      letter-spacing: 0;
+    }
+
+    .screen-note {
+      color: var(--muted);
+      margin: 4px 0 0;
+    }
+
+    .toolbar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      box-shadow: var(--shadow);
+      margin-bottom: 12px;
+    }
+
+    .panel-title {
+      margin: 0;
+      padding: 10px 14px;
+      border-bottom: 1px solid var(--line);
+      background: var(--head);
+      font-size: 15px;
+      font-weight: 700;
+    }
+
+    .panel-body {
+      padding: 14px;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .grid.two {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .grid.three {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .field {
+      min-width: 0;
+    }
+
+    label {
+      display: block;
+      font-size: 12px;
+      font-weight: 700;
+      color: #344054;
+      margin-bottom: 4px;
+    }
+
+    input, select, textarea {
+      width: 100%;
+      border: 1px solid var(--line-strong);
+      border-radius: 4px;
+      padding: 8px 9px;
+      min-height: 36px;
+      background: #fff;
+      color: var(--text);
+      font: inherit;
+    }
+
+    textarea {
+      resize: vertical;
+      min-height: 74px;
+    }
+
+    input[disabled], select[disabled], textarea[disabled] {
+      background: var(--disabled);
+      color: #667085;
+    }
+
+    .btn {
+      border: 1px solid var(--line-strong);
+      background: #fff;
+      color: var(--text);
+      min-height: 36px;
+      padding: 7px 12px;
+      border-radius: 4px;
+      font-weight: 700;
+      cursor: default;
+      white-space: nowrap;
+    }
+
+    .btn.primary {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #fff;
+    }
+
+    .btn.primary.dark {
+      background: var(--accent-dark);
+      border-color: var(--accent-dark);
+    }
+
+    .btn.danger {
+      background: var(--danger);
+      border-color: var(--danger);
+      color: #fff;
+    }
+
+    .btn.ghost {
+      background: transparent;
+    }
+
+    .btn.disabled {
+      background: var(--disabled);
+      color: #667085;
+      border-color: var(--line);
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      table-layout: fixed;
+    }
+
+    th, td {
+      border-bottom: 1px solid var(--line);
+      padding: 9px 10px;
+      text-align: left;
+      vertical-align: middle;
+      word-break: break-word;
+    }
+
+    th {
+      background: var(--head);
+      color: #344054;
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    tr:last-child td {
+      border-bottom: 0;
+    }
+
+    .num {
+      text-align: right;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .status {
+      display: inline-flex;
+      align-items: center;
+      min-height: 24px;
+      padding: 2px 8px;
+      border-radius: 999px;
+      font-weight: 700;
+      font-size: 12px;
+      border: 1px solid transparent;
+    }
+
+    .summary {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+
+    .metric {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      padding: 12px;
+      box-shadow: var(--shadow);
+    }
+
+    .metric-label {
+      color: var(--muted);
+      font-size: 12px;
+      margin-bottom: 4px;
+    }
+
+    .metric-value {
+      font-size: 22px;
+      font-weight: 700;
+      line-height: 1.2;
+    }
+
+    .tabs {
+      display: flex;
+      gap: 4px;
+      border-bottom: 1px solid var(--line);
+      margin-bottom: 12px;
+    }
+
+    .tab {
+      padding: 9px 12px;
+      border: 1px solid transparent;
+      border-bottom: 0;
+      border-radius: 6px 6px 0 0;
+      color: var(--muted);
+      font-weight: 700;
+    }
+
+    .tab.active {
+      color: var(--accent-dark);
+      background: #fff;
+      border-color: var(--line);
+    }
+
+    .calendar {
+      display: grid;
+      grid-template-columns: repeat(7, minmax(0, 1fr));
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      overflow: hidden;
+      background: var(--panel);
+    }
+
+    .calendar-head,
+    .calendar-day {
+      min-height: 48px;
+      border-right: 1px solid var(--line);
+      border-bottom: 1px solid var(--line);
+      padding: 8px;
+    }
+
+    .calendar-head {
+      min-height: 36px;
+      background: var(--head);
+      font-size: 12px;
+      font-weight: 700;
+      color: #344054;
+    }
+
+    .calendar-day:nth-child(7n) {
+      border-right: 0;
+    }
+
+    .day-num {
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+
+    .day-meta {
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .info-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 10px 14px;
+    }
+
+    .info-item {
+      min-width: 0;
+    }
+
+    .info-label {
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .info-value {
+      margin-top: 2px;
+      font-weight: 700;
+    }
+
+    .alert {
+      border: 1px solid #f1d36b;
+      background: var(--warn-bg);
+      color: #604000;
+      border-radius: 6px;
+      padding: 10px 12px;
+      margin-bottom: 12px;
+    }
+
+    .error {
+      border-color: #f5b5ae;
+      background: var(--danger-bg);
+      color: var(--danger);
+    }
+
+    .login-wrap {
+      display: grid;
+      grid-template-columns: minmax(280px, 420px) minmax(0, 1fr);
+      gap: 24px;
+      align-items: stretch;
+    }
+
+    .login-panel {
+      padding: 22px;
+    }
+
+    .mock-note {
+      background: #eaf1ff;
+      border: 1px solid #b9cffc;
+      color: #174ea6;
+      border-radius: 6px;
+      padding: 10px 12px;
+      margin-bottom: 16px;
+    }
+
+    @media (max-width: 980px) {
+      .app {
+        grid-template-columns: 1fr;
+      }
+
+      .sidebar {
+        position: static;
+        height: auto;
+      }
+
+      .topbar {
+        position: static;
+      }
+
+      .grid,
+      .grid.two,
+      .grid.three,
+      .summary,
+      .login-wrap {
+        grid-template-columns: 1fr;
+      }
+
+      .screen-header {
+        align-items: stretch;
+        flex-direction: column;
+      }
+    }
+
+@media print { .toolbar { display:none; } .content { padding:0; } }
+
+/* 画面表示共通ルール */
+.display-number,.num{ text-align:right; font-variant-numeric:tabular-nums; white-space:nowrap; }
+.display-temporal{ text-align:center; font-variant-numeric:tabular-nums; white-space:nowrap; }
+input,select,textarea{ text-align:left; }
+.info-value:not(.display-number):not(.display-temporal){ text-align:left; overflow-wrap:anywhere; }
+textarea{ white-space:pre-wrap; overflow-wrap:anywhere; }
+.day-num{ text-align:right; } .day-meta{ text-align:left; font-variant-numeric:tabular-nums; } .day-meta.display-number{ text-align:right; }
+
+/* WORK-153: 共通ルールに従う曜日中央・日時の途中折返し防止。製品CSSは参照しない。 */
+.calendar-head { text-align:center; }
+#list .panel-body:has(>table), #detail .panel-body:has(>table) { overflow-x:auto; }
+#list table { min-width:1180px; }
+#detail table { min-width:500px; }
+#list td:nth-child(8), #list td:nth-child(10), #list th:nth-child(8), #list th:nth-child(10) { text-align:left; white-space:nowrap; font-variant-numeric:tabular-nums; }
+</style>
+<div class="content"><p class="mock-note">画面構成と表示優先度を確認する静的モックです。</p><section id="list" class="screen">
+          <div class="screen-header">
+            <div>
+              <h1 class="screen-title">S-002 日報カレンダー・一覧画面</h1>
+              <p class="screen-note">カレンダーの未登録日から登録し、登録済みの日報を選ぶと詳細を開きます。編集できる日報は一覧または詳細から編集できます。</p>
+            </div>
+            <div class="toolbar">
+              <button class="btn primary">新規登録</button>
+            </div>
+          </div>
+          <div class="panel">
+            <h2 class="panel-title">表示条件</h2>
+            <div class="panel-body">
+              <div class="grid">
+                <div class="field"><label>対象年月</label><input type="month" value="2026-06" class="display-temporal"></div>
+                <div class="field"><label>社員</label><select><option>山田 太郎</option><option>佐藤 花子</option></select></div>
+
+                <div class="field"><label>承認状態</label><select><option>すべて</option><option>下書き</option><option>承認待ち</option><option>差戻し</option><option>承認済み</option></select></div>
+<div class="field"><label>休日区分</label><select><option>すべて</option><option>通常勤務</option><option>休日</option><option>有給休暇</option><option>午前休</option><option>午後休</option></select></div>
+              </div>
+              <div class="toolbar" style="margin-top:12px">
+                <button class="btn primary">検索</button>
+                <button class="btn">条件クリア</button>
+              </div>
+            </div>
+          </div>
+          <div class="panel">
+            <h2 class="panel-title">日報カレンダー</h2>
+            <div class="panel-body">
+              <div class="calendar">
+                <div class="calendar-head">月</div><div class="calendar-head">火</div><div class="calendar-head">水</div><div class="calendar-head">木</div><div class="calendar-head">金</div><div class="calendar-head">土</div><div class="calendar-head">日</div>
+                <div class="calendar-day"><div class="day-num">1</div><div class="day-meta display-number">7:00</div></div>
+                <div class="calendar-day"><div class="day-num">2</div><div class="day-meta">有給</div><div class="day-meta display-number">0:00</div></div>
+                <div class="calendar-day"><div class="day-num">3</div><div class="day-meta display-number">8:00</div></div>
+                <div class="calendar-day"><div class="day-num">4</div><div class="day-meta display-number">8:00</div></div>
+                <div class="calendar-day"><div class="day-num">5</div><div class="day-meta display-number">8:00</div></div>
+                <div class="calendar-day"><div class="day-num">6</div><div class="day-meta">休日</div><div class="day-meta display-number">0:00</div></div>
+                <div class="calendar-day"><div class="day-num">7</div><div class="day-meta">休日</div><div class="day-meta display-number">0:00</div></div>
+              </div>
+            </div>
+          </div>
+          <div class="panel">
+            <h2 class="panel-title">当月日報一覧</h2>
+            <div class="panel-body">
+              <table>
+                <thead>
+                  <tr>
+                    <th class="display-temporal">日付</th><th>グループ</th><th>社員名</th><th>休日区分</th><th class="num">実勤務</th><th class="num">作業時間</th><th>承認状態</th><th>提出日時</th><th>承認者</th><th>承認日時</th><th>操作</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td class="display-temporal">2026/06/03</td><td>第一開発グループ</td><td>山田 太郎</td><td>通常勤務</td><td class="num">8:00</td><td class="num">8:00</td><td>承認済み</td><td>06/03 18:00</td><td>サンプル上長</td><td>2026/06/04 09:00</td><td><button class="btn">詳細</button></td>
+                  </tr>
+                  <tr>
+                    <td class="display-temporal">2026/06/02</td><td>第一開発グループ</td><td>山田 太郎</td><td>有給休暇</td><td class="num">0:00</td><td class="num">0:00</td><td>下書き</td><td>—</td><td>—</td><td>—</td><td><button class="btn">編集</button></td>
+                  </tr>
+                  <tr>
+                    <td class="display-temporal">2026/06/01</td><td>第一開発グループ</td><td>山田 太郎</td><td>通常勤務</td><td class="num">7:30</td><td class="num">7:00</td><td>差戻し</td><td>06/01 18:00</td><td>—</td><td>—</td><td><button class="btn">編集</button></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section></div>
+
+
+
+</template></div></div></section>
+  <footer>印刷時は選択中のタブを出力します。</footer>
+</article>
+<script>
+// 同一ファイル内の仕様・入力・業務ルール・モックとURLを同期する。
+for (const surface of document.querySelectorAll('.mock-surface')) {
+  if (!surface.shadowRoot) {
+    const template = surface.querySelector('template');
+    const shadow = surface.attachShadow({ mode: 'open' });
+    shadow.append(template.content.cloneNode(true));
+    template.remove();
+  }
+}
+const primary = document.querySelector('[data-tabs="primary"]');
+function selectGroup(group, selected) {
+  if (!group) return;
+  for (const tab of group.querySelectorAll('[role="tab"]')) {
+    const active = tab.getAttribute('aria-controls') === selected;
+    tab.setAttribute('aria-selected', String(active));
+    tab.tabIndex = active ? 0 : -1;
+    document.getElementById(tab.getAttribute('aria-controls')).hidden = !active;
+  }
+}
+function showHash() {
+  const hash = location.hash.slice(1);
+  if (["screen-detail","detail-section-0","detail-section-1","detail-section-2","detail-approval-audit","detail-section-4","ui-regions-work-155","mock-detail","input-1","rules-3"].includes(hash)) {
+    location.replace("../日報詳細/基本設計.html#" + hash);
+    return;
+  }
+  const view = hash.startsWith('mock') ? 'mock' : hash.startsWith('input') ? 'input' : hash.startsWith('rules') ? 'rules' : 'spec';
+  selectGroup(primary, view);
+  document.querySelector('.document').dataset.view = view;
+}
+{
+  const group = primary;
+  const tabs = [...group.querySelectorAll('[role="tab"]')];
+  function select(tab) { history.replaceState(null, '', '#' + tab.getAttribute('aria-controls')); showHash(); }
+  tabs.forEach((tab, index) => {
+    tab.addEventListener('click', () => select(tab));
+    tab.addEventListener('keydown', event => {
+      if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
+      event.preventDefault();
+      const target = event.key === 'Home' ? 0 : event.key === 'End' ? tabs.length - 1 : (index + (event.key === 'ArrowRight' ? 1 : -1) + tabs.length) % tabs.length;
+      tabs[target].focus(); select(tabs[target]);
+    });
+  });
+}
+window.addEventListener('hashchange', showHash);
+showHash();
+</script>
+</body></html>

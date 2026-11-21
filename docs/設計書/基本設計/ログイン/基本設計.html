@@ -1,0 +1,1802 @@
+<!doctype html>
+<html lang="ja">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>ログイン 基本設計</title><style>
+:root { color-scheme: light; --ink:#20324a; --muted:#586c82; --line:#d8e1eb; --accent:#185c95; }
+* { box-sizing:border-box; }
+body { margin:0; background:#eef2f6; color:var(--ink); font:15px/1.8 "Yu Gothic UI","Meiryo",sans-serif; }
+a { color:var(--accent); text-underline-offset:3px; }
+.document { max-width:1160px; margin:28px auto; padding:44px 52px; background:white; border:1px solid var(--line); border-radius:12px; }
+.document-header { border-bottom:3px solid var(--accent); padding-bottom:24px; }
+.eyebrow { margin:0 0 8px; color:var(--accent); font-size:13px; font-weight:700; letter-spacing:.08em; }
+h1 { margin:0; font-size:27px; line-height:1.5; }
+.meta { margin:18px 0 0; display:flex; flex-wrap:wrap; gap:10px 26px; font-size:14px; color:var(--muted); }
+.toolbar { display:flex; flex-wrap:wrap; gap:8px 20px; margin:18px 0 0; }
+.layout { display:grid; grid-template-columns:190px minmax(0,1fr); gap:32px; margin-top:28px; }
+.toc { align-self:start; position:sticky; top:24px; padding:16px; background:#f5f8fb; border:1px solid var(--line); border-radius:8px; }
+.toc strong { display:block; margin-bottom:8px; }
+.toc a { display:block; margin:6px 0; font-size:14px; }
+main { min-width:0; }
+h2 { font-size:20px; border-bottom:1px solid var(--line); padding-bottom:8px; margin:32px 0 14px; }
+main>h2:first-child { margin-top:0; }
+h3 { font-size:17px; padding:7px 12px; background:#edf4fa; border-left:3px solid var(--accent); margin:24px 0 12px; }
+p { margin:10px 0 14px; }
+ul { padding-left:22px; margin:12px 0 18px; }
+li { padding:3px 0; }
+table { width:100%; border-collapse:collapse; margin:12px 0 24px; font-size:14px; }
+th,td { text-align:left; vertical-align:top; padding:10px 12px; border:1px solid var(--line); }
+th { background:#edf2f7; font-weight:700; }
+td.group { width:140px; background:#f8fafc; }
+code { font:13px/1.6 Consolas,monospace; background:#eef2f6; padding:2px 4px; border-radius:3px; }
+footer { border-top:1px solid var(--line); margin-top:32px; padding-top:16px; color:var(--muted); font-size:13px; }
+@media(max-width:760px) { .document{margin:0;padding:24px 18px;border:0;border-radius:0;} .layout{display:block;} .toc{position:static;margin-bottom:24px;} h1{font-size:23px;} }
+@media print { @page { size:A4; margin:14mm; } body{background:white;font-size:10pt;} .document{max-width:none;margin:0;padding:0;border:0;border-radius:0;} .toolbar,.toc{display:none;} .layout{display:block;margin-top:18px;} h1{font-size:20pt;} h2,h3{break-after:avoid;} tr{break-inside:avoid;} table{font-size:9pt;} a{color:inherit;text-decoration:none;} }
+
+/* 仕様とモックは同じファイル内のタブで切り替える。 */
+.view-tabs { display:flex; gap:8px; border-bottom:1px solid var(--line); margin:24px 0 0; }
+.view-tab { appearance:none; border:1px solid var(--line); border-bottom:0; background:#f3f6fa; color:var(--muted); font:inherit; font-weight:700; padding:10px 30px; border-radius:8px 8px 0 0; cursor:pointer; }
+.view-tab[aria-selected="true"] { background:var(--accent); color:white; border-color:var(--accent); }
+.view-tab:focus-visible { outline:3px solid #e49a20; outline-offset:3px; }
+[role="tabpanel"][hidden] { display:none; }
+.mock-panel { margin-top:24px; }
+.document[data-view="mock"] { max-width:1440px; }
+#mock-surface { display:block; min-width:0; }
+@media(max-width:760px) { .view-tab{flex:1;padding:10px 20px;} }
+@media print { .view-tabs{display:none;} .document[data-view="mock"]{max-width:none;} .mock-panel{margin-top:16px;} }
+
+.table-scroll{max-width:100%;overflow-x:auto;} .screen-spec{margin-top:36px;} .screen-spec-heading{border-top:3px solid var(--line);padding-top:18px;} .mock-screen-tabs{margin:0 0 16px;} .mock-screen-tabs .view-tab{padding:8px 22px;} .primary-tabs{flex-wrap:wrap;} .view-tab{padding:10px 22px;} ol{padding-left:24px;} [role="tabpanel"]:focus-visible{outline:3px solid #e49a20;outline-offset:3px;} @media print{.table-scroll{overflow:visible;} .mock-screen-tabs{display:none;}}
+</style></head>
+<body>
+<article class="document" data-view="spec">
+  <header class="document-header">
+    <p class="eyebrow">基本設計</p><h1>ログイン 基本設計</h1>
+    <div class="meta"><span>仕様・入力チェック・業務ルール・モック</span></div>
+  </header>
+  <div class="view-tabs primary-tabs" role="tablist" aria-label="基本設計の内容" data-tabs="primary"><button type="button" class="view-tab" role="tab" id="tab-spec" aria-controls="spec" aria-selected="true" tabindex="0">仕様</button>
+<button type="button" class="view-tab" role="tab" id="tab-input" aria-controls="input" aria-selected="false" tabindex="-1">入力チェック</button>
+<button type="button" class="view-tab" role="tab" id="tab-rules" aria-controls="rules" aria-selected="false" tabindex="-1">業務ルール</button>
+<button type="button" class="view-tab" role="tab" id="tab-mock" aria-controls="mock" aria-selected="false" tabindex="-1">モック</button></div>
+  <section id="spec" role="tabpanel" aria-labelledby="tab-spec" tabindex="0"><div class="layout"><aside class="toc" aria-label="目次"><strong>目次</strong>
+
+<a href="#spec-2">業務の流れ</a>
+<a href="#spec-3">分岐・例外</a>
+
+<a href="#spec-5">画面と仕様</a>
+<a href="#display-policy">表示の共通ルール</a>
+<a href="#screen-login">S-001 ログイン</a><a href="#current-user-and-session-change">利用者情報の最新化</a></aside><main><h2 id="spec-2">業務の流れ</h2>
+
+<ol><li>ログインIDとパスワードを入力する。</li>
+<li>認証を実行する。</li>
+<li>認証成功後、日報検索のカレンダー・一覧を表示する。</li>
+<li>利用終了時はログアウトする。</li></ol>
+
+<h2 id="spec-3">分岐・例外</h2>
+
+<ul><li>入力不足・形式不正・認証失敗ではログイン画面に留まり、エラーを表示する。</li>
+<li>セッション切れでは保護された画面・APIを利用できない。</li></ul>
+
+<h2 id="display-policy">表示の共通ルール</h2>
+<p>全画面のI/O区分・表示形式・揃え方・未設定値・長文の扱いは<a href="../画面表示共通ルール.html">画面表示共通ルール</a>に従う。各画面の項目表でI/O・表示方式・揃え方を指定する。</p>
+
+<h2 id="spec-5">画面と仕様</h2>
+
+<div class="table-scroll"><table><thead><tr><th scope="col">画面ID</th><th scope="col">画面</th><th scope="col">設計</th><th scope="col">モック</th></tr></thead><tbody><tr><td>S-001</td><td>ログイン</td><td><a href="#screen-login">画面設計</a></td><td><a href="#mock-login">モック</a></td></tr></tbody></table></div>
+
+<p>入力の仕様は<a href="#input">入力チェック</a>、処理・権限・計算の仕様は<a href="#rules">業務ルール一覧</a>を参照する。</p>
+<section class="screen-spec" id="screen-login"><h2 class="screen-spec-heading">S-001 ログイン画面仕様</h2>
+<h2 id="login-section-0">S-001 ログイン画面</h2>
+
+<h3 id="login-section-1">目的</h3>
+
+<p>利用者がログインし、ロールに応じた初期画面へ遷移する。</p>
+
+<h3 id="login-section-2">主要項目</h3>
+
+<div class="table-scroll"><table><thead><tr><th scope="col">区分</th><th scope="col">項目</th><th scope="col">I/O</th><th scope="col">表示方式</th><th scope="col">揃え方</th></tr></thead><tbody><tr><td class="group">項目</td><td>ログインID</td><td>I</td><td>文字列をそのまま表示</td><td>左詰め</td></tr>
+<tr><td class="group">項目</td><td>パスワード</td><td>I</td><td>伏せ字。表示操作時は入力値をそのまま表示</td><td>左詰め</td></tr>
+<tr><td class="group">項目</td><td>エラーメッセージ</td><td>O</td><td>メッセージ全文を折り返して表示</td><td>左詰め</td></tr></tbody></table></div>
+
+<h3 id="login-section-4">遷移</h3>
+
+<ul><li>ログイン成功時は日報カレンダー・一覧画面へ遷移する</li>
+<li>ログイン失敗時はログイン画面に留まり、エラーを表示する</li></ul>
+
+</section><section id="current-user-and-session-change"><h2>利用者情報の最新化と認証監視</h2><ul><li>ログイン中利用者の取得では、要求のたびに登録された最新の利用者情報を再取得する。ログイン時の保持情報をそのまま返す方式にはしない。</li><li>認証監視で、表示中の利用者と最新の利用者のユーザーIDまたはロールが異なることを検知した場合は、現在画面と未保存入力を破棄し、最新の利用者の日報カレンダー・一覧画面（S-002）へ戻る。別タブで別アカウントへ再ログインした場合も同じ扱いとする。</li><li>ユーザーIDとロールが同じ場合は、最新の利用者情報を受け取り、現在画面と未保存入力を維持する。通信失敗と認証失効は区別する。</li></ul><p>取得・失敗時処理、監視とログアウトの競合、期限の技術条件は<a href="../../詳細設計/認証・セッション方式.md">認証・セッション方式</a>と<a href="../../詳細設計/ログイン/index.html#IO-105">ログイン詳細設計</a>で具体化する。</p></section><section id="login-visual-agreement"><h2>ログインパネルの見た目</h2><p>ログインパネルは初期表示・ID入力エラー・認証失敗のモックに合わせる。見出し背景、案内位置、必須ラベル、表示切替ボタンとログインボタンの配置・サイズを基準にする。初期ユーザー例やモック説明は設計注釈であり実画面の項目ではない。</p><p>画像比較はパネルの寸法を保持して同じ撮影原点・背景へ固定し、同一環境で画素差0を判定する。自然配置の幅・拡大・操作性は別の画面テストで確認する。</p></section><section id="agreed-login-ui"><h2>合意済みの操作・復旧条件</h2><p>Enterで送信でき、Tabで全操作部品へ到達しフォーカスが見える。失敗時はIDを保持しPWを消去する。入力で該当エラーを非表示にし、送信中は重複送信できない。幅360/768/1280pxと200%拡大で切れ・重なりを起こさない。</p><p>通信失敗・不正な成功応答ではログイン画面に留まり、安全な案内を表示し再入力・再送で復旧できる。同一/別アカウントへの正しい再ログインは新しい認証として成功し旧CSRFは無効になる。ログアウト後の戻る・再読込では保護画面を再表示しない。</p><p>APIの確定文言は<a href="../../詳細設計/API一覧.md">API一覧</a>に従いそのまま表示する。</p></section></main></div></section>
+  <section id="input" role="tabpanel" aria-labelledby="tab-input" tabindex="0" hidden><div class="layout"><aside class="toc" aria-label="目次"><strong>目次</strong><a href="#input-0">ログイン入力</a><a href="#input-characters">許可文字・禁止文字</a><a href="#input-errors">チェック時の扱い</a></aside><main><h2 id="input-0">ログイン入力</h2>
+
+<div class="table-scroll"><table><thead><tr><th scope="col">項目</th><th scope="col">チェック</th><th scope="col">エラー時</th></tr></thead><tbody><tr><td>ログインID</td><td>必須、最大80文字、許可文字のみで構成する</td><td>項目に入力エラーを表示する</td></tr>
+<tr><td>パスワード</td><td>必須、最大72文字、禁止文字を含まない</td><td>項目に入力エラーを表示する</td></tr></tbody></table></div>
+
+<h2 id="input-characters">許可文字・禁止文字</h2>
+
+<div class="table-scroll"><table><thead><tr><th scope="col">項目</th><th scope="col">許可文字</th><th scope="col">禁止文字</th><th scope="col">入力例</th></tr></thead><tbody>
+<tr><td>ログインID</td><td>半角英字 <code>A–Z</code>・<code>a–z</code>、半角数字 <code>0–9</code>、ハイフン <code>-</code>、アンダースコア <code>_</code>、ピリオド <code>.</code></td><td>許可文字以外のすべて。半角・全角の空白、改行、タブ、日本語、全角英数字、<code>@</code>・<code>/</code>・<code>\</code>・引用符などの記号を含む。</td><td>許可：<code>employee001</code>、<code>user-01</code>、<code>user_01</code>、<code>user.01</code><br>禁止：<code>user 01</code>、<code>ｕｓｅｒ０１</code>、<code>user@example.com</code></td></tr>
+<tr><td>パスワード</td><td>禁止文字を除く文字。半角・全角の英数字、日本語、記号、絵文字、半角・全角の空白を許可する。Unicodeのコードポイントで数える。日本語・絵文字も1コードポイントを1文字とし、結合文字列はコードポイントごとに数える。</td><td>制御文字 <code>U+0000–U+001F</code>・<code>U+007F–U+009F</code>、行区切り <code>U+2028</code>、段落区切り <code>U+2029</code>。NULL文字、タブ、改行（LF）、復帰（CR）、削除（DEL）などを含む。</td><td>許可：<code>DailyReport123!</code>、<code> secret </code>、<code>日報#123</code><br>禁止：改行・タブ・NULL文字を含む値</td></tr>
+</tbody></table></div>
+
+<h2 id="input-errors">チェック時の扱い</h2><p>ログインIDは登録値と大小文字を区別して照合する。英字・数字・記号の混在を必須とはしない。JSON要求は文字列型のloginId/passwordだけを受け付け、数値/真偽値/配列/オブジェクトの暗黙変換と未知項目は400で拒否する。未指定/NULL/空文字は項目の必須チェックで判定する。</p>
+
+<ul><li>入力値をそのまま検証する。前後の空白の除去、禁止文字の削除、全角・半角の変換、大文字・小文字の変換は行わない。パスワードの前後の空白も認証情報の一部として扱う。</li>
+<li>入力・貼り付けの方法によらず、送信後にAPIで同じ条件を検証する。入力不正は400と対象項目・表示文言を返し、画面は対象項目の下へその文言を表示する。画面側で同じ条件を再定義しない。</li>
+<li>ログインIDの文字種エラーは「ログインIDが不正です」と表示する。</li>
+<li>パスワードの禁止文字エラーは「パスワードに改行、タブなどの制御文字は使用できません。」と表示する。メッセージに入力したパスワードを含めない。</li></ul>
+
+<p>認証情報が一致しない場合はログインを成立させず、ログイン画面にエラーを表示する。</p><p>文字数の入力チェックに通っても、UTF-8で72バイトを超えるパスワードは認証できない。日本語などを含む場合は72文字以内でも該当する。画面には通常の認証失敗の案内を表示する。<a href="../../詳細設計/認証・セッション方式.md">認証・セッション方式</a>を参照する。</p><section id="login-visual-agreement"><h2>ログインパネルの見た目</h2><p>ログインパネルは初期表示・ID入力エラー・認証失敗のモックに合わせる。見出し背景、案内位置、必須ラベル、表示切替ボタンとログインボタンの配置・サイズを基準にする。初期ユーザー例やモック説明は設計注釈であり実画面の項目ではない。</p><p>画像比較はパネルの寸法を保持して同じ撮影原点・背景へ固定し、同一環境で画素差0を判定する。自然配置の幅・拡大・操作性は別の画面テストで確認する。</p></section><section id="agreed-login-ui"><h2>合意済みの操作・復旧条件</h2><p>Enterで送信でき、Tabで全操作部品へ到達しフォーカスが見える。失敗時はIDを保持しPWを消去する。入力で該当エラーを非表示にし、送信中は重複送信できない。幅360/768/1280pxと200%拡大で切れ・重なりを起こさない。</p><p>通信失敗・不正な成功応答ではログイン画面に留まり、安全な案内を表示し再入力・再送で復旧できる。同一/別アカウントへの正しい再ログインは新しい認証として成功し旧CSRFは無効になる。ログアウト後の戻る・再読込では保護画面を再表示しない。</p><p>APIの確定文言は<a href="../../詳細設計/API一覧.md">API一覧</a>に従いそのまま表示する。</p></section></main></div></section>
+  <section id="rules" role="tabpanel" aria-labelledby="tab-rules" tabindex="0" hidden><div class="layout"><aside class="toc" aria-label="目次"><strong>目次</strong><a href="#rules-0">認証・画面遷移</a></aside><main><h2 id="rules-0">認証・画面遷移</h2>
+
+<ul><li>社員、上長、管理者が利用する。</li>
+<li>ログイン成功後は日報カレンダー・一覧へ遷移する。</li>
+<li>ログイン失敗時は同じ画面に留まる。</li>
+<li>未認証では保護された画面・APIを利用できない。</li>
+<li>ログアウト後はセッションを無効にする。</li>
+<li>セッションの有効期限は最後の成功した認証済み業務APIアクセスから30分とする。認証状態確認・CSRF取得などの認証関連APIと、クリック・入力だけでは期限を延長しない。登録・編集画面で失効を検知した場合は未保存入力を破棄し、「セッションの有効期限が切れました。再度ログインしてください。」を表示してログイン画面へ戻る。</li></ul><section id="login-visual-agreement"><h2>ログインパネルの見た目</h2><p>ログインパネルは初期表示・ID入力エラー・認証失敗のモックに合わせる。見出し背景、案内位置、必須ラベル、表示切替ボタンとログインボタンの配置・サイズを基準にする。初期ユーザー例やモック説明は設計注釈であり実画面の項目ではない。</p><p>画像比較はパネルの寸法を保持して同じ撮影原点・背景へ固定し、同一環境で画素差0を判定する。自然配置の幅・拡大・操作性は別の画面テストで確認する。</p></section><section id="agreed-login-ui"><h2>合意済みの操作・復旧条件</h2><p>Enterで送信でき、Tabで全操作部品へ到達しフォーカスが見える。失敗時はIDを保持しPWを消去する。入力で該当エラーを非表示にし、送信中は重複送信できない。幅360/768/1280pxと200%拡大で切れ・重なりを起こさない。</p><p>通信失敗・不正な成功応答ではログイン画面に留まり、安全な案内を表示し再入力・再送で復旧できる。同一/別アカウントへの正しい再ログインは新しい認証として成功し旧CSRFは無効になる。ログアウト後の戻る・再読込では保護画面を再表示しない。</p><p>APIの確定文言は<a href="../../詳細設計/API一覧.md">API一覧</a>に従いそのまま表示する。</p></section></main></div></section>
+  <section id="mock" class="mock-panel" role="tabpanel" aria-labelledby="tab-mock" tabindex="0" hidden><div class="view-tabs mock-screen-tabs" role="tablist" aria-label="モック画面" data-tabs="screens"><button type="button" class="view-tab" role="tab" id="tab-mock-login" aria-controls="mock-login" aria-selected="true" tabindex="0">初期表示</button><button type="button" class="view-tab" role="tab" id="tab-mock-login-id-error" aria-controls="mock-login-id-error" aria-selected="false" tabindex="-1">ID入力エラー</button><button type="button" class="view-tab" role="tab" id="tab-mock-login-auth-error" aria-controls="mock-login-auth-error" aria-selected="false" tabindex="-1">認証失敗</button></div><section id="mock-login" role="tabpanel" aria-labelledby="tab-mock-login"><div class="mock-surface"><template shadowrootmode="open">
+
+<style>
+    :host {
+      --bg: #f4f6f8;
+      --panel: #ffffff;
+      --line: #d7dde5;
+      --line-strong: #aeb8c5;
+      --text: #1f2933;
+      --muted: #627386;
+      --head: #eef2f6;
+      --accent: #1f6feb;
+      --accent-dark: #174ea6;
+      --danger: #b42318;
+      --danger-bg: #fff1f0;
+      --warn: #8a5a00;
+      --warn-bg: #fff8db;
+      --ok: #176b43;
+      --ok-bg: #e9f7ef;
+      --disabled: #e4e8ee;
+      --shadow: 0 1px 2px rgba(16, 24, 40, 0.08);
+      font-family: "Segoe UI", "Yu Gothic UI", "Meiryo", sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    :host {
+      display: block;
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-size: 14px;
+      line-height: 1.5;
+    }
+
+    a {
+      color: inherit;
+      text-decoration: none;
+    }
+
+    .app {
+      display: grid;
+      grid-template-columns: 248px minmax(0, 1fr);
+      min-height: 100vh;
+    }
+
+    .sidebar {
+      background: #26313f;
+      color: #eef3f8;
+      padding: 18px 14px;
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      overflow: auto;
+    }
+
+    .brand {
+      font-size: 18px;
+      font-weight: 700;
+      margin: 0 0 4px;
+    }
+
+    .subtitle {
+      color: #b8c4d2;
+      font-size: 12px;
+      margin-bottom: 18px;
+    }
+
+    .nav-group {
+      margin-top: 18px;
+    }
+
+    .nav-title {
+      color: #b8c4d2;
+      font-size: 12px;
+      font-weight: 700;
+      margin: 0 0 8px;
+    }
+
+    .nav-link {
+      display: block;
+      padding: 8px 10px;
+      border-radius: 6px;
+      color: #eef3f8;
+      margin-bottom: 4px;
+    }
+
+    .nav-link:hover {
+      background: rgba(255,255,255,0.11);
+    }
+
+    .main {
+      min-width: 0;
+    }
+
+    .topbar {
+      height: 56px;
+      background: var(--panel);
+      border-bottom: 1px solid var(--line);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 24px;
+      position: sticky;
+      top: 0;
+      z-index: 3;
+    }
+
+    .userbox {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .content {
+      padding: 24px;
+      max-width: 1360px;
+      margin: 0 auto;
+    }
+
+    .screen {
+      margin-bottom: 40px;
+      scroll-margin-top: 72px;
+    }
+
+    .screen-header {
+      display: flex;
+      justify-content: space-between;
+      gap: 16px;
+      align-items: flex-end;
+      margin-bottom: 12px;
+    }
+
+    .screen-title {
+      margin: 0;
+      font-size: 22px;
+      letter-spacing: 0;
+    }
+
+    .screen-note {
+      color: var(--muted);
+      margin: 4px 0 0;
+    }
+
+    .toolbar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      box-shadow: var(--shadow);
+      margin-bottom: 12px;
+    }
+
+    .panel-title {
+      margin: 0;
+      padding: 10px 14px;
+      border-bottom: 1px solid var(--line);
+      background: var(--head);
+      font-size: 15px;
+      font-weight: 700;
+    }
+
+    .panel-body {
+      padding: 14px;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .grid.two {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .grid.three {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .field {
+      min-width: 0;
+    }
+
+    label {
+      display: block;
+      font-size: 12px;
+      font-weight: 700;
+      color: #344054;
+      margin-bottom: 4px;
+    }
+
+    input, select, textarea {
+      width: 100%;
+      border: 1px solid var(--line-strong);
+      border-radius: 4px;
+      padding: 8px 9px;
+      min-height: 36px;
+      background: #fff;
+      color: var(--text);
+      font: inherit;
+    }
+
+    textarea {
+      resize: vertical;
+      min-height: 74px;
+    }
+
+    input[disabled], select[disabled], textarea[disabled] {
+      background: var(--disabled);
+      color: #667085;
+    }
+
+    .btn {
+      border: 1px solid var(--line-strong);
+      background: #fff;
+      color: var(--text);
+      min-height: 36px;
+      padding: 7px 12px;
+      border-radius: 4px;
+      font-weight: 700;
+      cursor: default;
+      white-space: nowrap;
+    }
+
+    .btn.primary {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #fff;
+    }
+
+    .btn.primary.dark {
+      background: var(--accent-dark);
+      border-color: var(--accent-dark);
+    }
+
+    .btn.danger {
+      background: var(--danger);
+      border-color: var(--danger);
+      color: #fff;
+    }
+
+    .btn.ghost {
+      background: transparent;
+    }
+
+    .btn.disabled {
+      background: var(--disabled);
+      color: #667085;
+      border-color: var(--line);
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      table-layout: fixed;
+    }
+
+    th, td {
+      border-bottom: 1px solid var(--line);
+      padding: 9px 10px;
+      text-align: left;
+      vertical-align: middle;
+      word-break: break-word;
+    }
+
+    th {
+      background: var(--head);
+      color: #344054;
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    tr:last-child td {
+      border-bottom: 0;
+    }
+
+    .num {
+      text-align: right;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .status {
+      display: inline-flex;
+      align-items: center;
+      min-height: 24px;
+      padding: 2px 8px;
+      border-radius: 999px;
+      font-weight: 700;
+      font-size: 12px;
+      border: 1px solid transparent;
+    }
+
+    .summary {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+
+    .metric {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      padding: 12px;
+      box-shadow: var(--shadow);
+    }
+
+    .metric-label {
+      color: var(--muted);
+      font-size: 12px;
+      margin-bottom: 4px;
+    }
+
+    .metric-value {
+      font-size: 22px;
+      font-weight: 700;
+      line-height: 1.2;
+    }
+
+    .tabs {
+      display: flex;
+      gap: 4px;
+      border-bottom: 1px solid var(--line);
+      margin-bottom: 12px;
+    }
+
+    .tab {
+      padding: 9px 12px;
+      border: 1px solid transparent;
+      border-bottom: 0;
+      border-radius: 6px 6px 0 0;
+      color: var(--muted);
+      font-weight: 700;
+    }
+
+    .tab.active {
+      color: var(--accent-dark);
+      background: #fff;
+      border-color: var(--line);
+    }
+
+    .calendar {
+      display: grid;
+      grid-template-columns: repeat(7, minmax(0, 1fr));
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      overflow: hidden;
+      background: var(--panel);
+    }
+
+    .calendar-head,
+    .calendar-day {
+      min-height: 48px;
+      border-right: 1px solid var(--line);
+      border-bottom: 1px solid var(--line);
+      padding: 8px;
+    }
+
+    .calendar-head {
+      min-height: 36px;
+      background: var(--head);
+      font-size: 12px;
+      font-weight: 700;
+      color: #344054;
+    }
+
+    .calendar-day:nth-child(7n) {
+      border-right: 0;
+    }
+
+    .day-num {
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+
+    .day-meta {
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .info-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 10px 14px;
+    }
+
+    .info-item {
+      min-width: 0;
+    }
+
+    .info-label {
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .info-value {
+      margin-top: 2px;
+      font-weight: 700;
+    }
+
+    .alert {
+      border: 1px solid #f1d36b;
+      background: var(--warn-bg);
+      color: #604000;
+      border-radius: 6px;
+      padding: 10px 12px;
+      margin-bottom: 12px;
+    }
+
+    .error {
+      border-color: #f5b5ae;
+      background: var(--danger-bg);
+      color: var(--danger);
+    }
+
+    .login-wrap {
+      display: grid;
+      grid-template-columns: minmax(280px, 420px) minmax(0, 1fr);
+      gap: 24px;
+      align-items: stretch;
+    }
+
+    .login-panel {
+      padding: 22px;
+    }
+
+    .mock-note {
+      background: #eaf1ff;
+      border: 1px solid #b9cffc;
+      color: #174ea6;
+      border-radius: 6px;
+      padding: 10px 12px;
+      margin-bottom: 16px;
+    }
+
+    @media (max-width: 980px) {
+      .app {
+        grid-template-columns: 1fr;
+      }
+
+      .sidebar {
+        position: static;
+        height: auto;
+      }
+
+      .topbar {
+        position: static;
+      }
+
+      .grid,
+      .grid.two,
+      .grid.three,
+      .summary,
+      .login-wrap {
+        grid-template-columns: 1fr;
+      }
+
+      .screen-header {
+        align-items: stretch;
+        flex-direction: column;
+      }
+    }
+
+@media print { .toolbar { display:none; } .content { padding:0; } }
+
+  /* 狭い表示でも操作部品が収まるようパネルの余白を縮小する。 */
+  .login-wrap { container-type: inline-size; }
+  @container (max-width: 200px) {
+    .login-panel { padding: 8px; }
+    .login-panel .panel-body { padding: 8px; }
+  }
+/* 画面表示共通ルール */
+.display-number,.num{ text-align:right; font-variant-numeric:tabular-nums; white-space:nowrap; }
+.display-temporal{ text-align:center; font-variant-numeric:tabular-nums; white-space:nowrap; }
+input,select,textarea{ text-align:left; }
+.info-value:not(.display-number):not(.display-temporal){ text-align:left; overflow-wrap:anywhere; }
+textarea{ white-space:pre-wrap; overflow-wrap:anywhere; }
+.day-num{ text-align:right; } .day-meta{ text-align:left; font-variant-numeric:tabular-nums; } .day-meta.display-number{ text-align:right; }
+
+/* WORK-087: ログインを中央に置き、PW欄と表示操作の間に8px確保する。 */
+.login-wrap { grid-template-columns: minmax(0, 420px); justify-content: center; }
+.login-panel #password + .btn { margin-top: 8px; }
+</style>
+<div class="content"><p class="mock-note">画面構成と表示優先度を確認する静的モックです。</p><section id="login" class="screen">
+          <div class="screen-header">
+            <div>
+              <h1 class="screen-title">S-001 ログイン画面</h1>
+              <p class="screen-note">社員、上長、管理者がログインする。</p>
+            </div>
+          </div>
+          <div class="login-wrap">
+            <div class="panel login-panel">
+              <h2 class="panel-title">ログイン</h2>
+              <div class="panel-body"><div class="alert">ログインしてください。</div>
+
+                <div class="field">
+                  <label for="login-id">ログインID（必須）</label>
+                  <input id="login-id" value="">
+                </div>
+                <div class="field" style="margin-top:12px">
+                  <label for="password">パスワード（必須）</label>
+                  <input id="password" type="password" value=""><button type="button" class="btn" aria-label="パスワードを表示">表示</button>
+                </div>
+                <div class="toolbar" style="margin-top:16px">
+                  <button class="btn primary">ログイン</button>
+                </div>
+              </div>
+            </div>
+            <div class="panel">
+              <h2 class="panel-title">初期ユーザー例</h2>
+              <div class="panel-body">
+                <table>
+                  <thead>
+                    <tr><th>ロール</th><th>ログインID</th><th>初期表示</th></tr>
+                  </thead>
+                  <tbody>
+                    <tr><td>社員</td><td>employee001</td><td>日報カレンダー・一覧</td></tr>
+                    <tr><td>上長</td><td>manager001</td><td>日報カレンダー・一覧</td></tr>
+                    <tr><td>管理者</td><td>admin001</td><td>日報カレンダー・一覧</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </section></div>
+
+
+
+</template></div></section><section id="mock-login-id-error" role="tabpanel" aria-labelledby="tab-mock-login-id-error"><div class="mock-surface"><template shadowrootmode="open">
+
+<style>
+    :host {
+      --bg: #f4f6f8;
+      --panel: #ffffff;
+      --line: #d7dde5;
+      --line-strong: #aeb8c5;
+      --text: #1f2933;
+      --muted: #627386;
+      --head: #eef2f6;
+      --accent: #1f6feb;
+      --accent-dark: #174ea6;
+      --danger: #b42318;
+      --danger-bg: #fff1f0;
+      --warn: #8a5a00;
+      --warn-bg: #fff8db;
+      --ok: #176b43;
+      --ok-bg: #e9f7ef;
+      --disabled: #e4e8ee;
+      --shadow: 0 1px 2px rgba(16, 24, 40, 0.08);
+      font-family: "Segoe UI", "Yu Gothic UI", "Meiryo", sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    :host {
+      display: block;
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-size: 14px;
+      line-height: 1.5;
+    }
+
+    a {
+      color: inherit;
+      text-decoration: none;
+    }
+
+    .app {
+      display: grid;
+      grid-template-columns: 248px minmax(0, 1fr);
+      min-height: 100vh;
+    }
+
+    .sidebar {
+      background: #26313f;
+      color: #eef3f8;
+      padding: 18px 14px;
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      overflow: auto;
+    }
+
+    .brand {
+      font-size: 18px;
+      font-weight: 700;
+      margin: 0 0 4px;
+    }
+
+    .subtitle {
+      color: #b8c4d2;
+      font-size: 12px;
+      margin-bottom: 18px;
+    }
+
+    .nav-group {
+      margin-top: 18px;
+    }
+
+    .nav-title {
+      color: #b8c4d2;
+      font-size: 12px;
+      font-weight: 700;
+      margin: 0 0 8px;
+    }
+
+    .nav-link {
+      display: block;
+      padding: 8px 10px;
+      border-radius: 6px;
+      color: #eef3f8;
+      margin-bottom: 4px;
+    }
+
+    .nav-link:hover {
+      background: rgba(255,255,255,0.11);
+    }
+
+    .main {
+      min-width: 0;
+    }
+
+    .topbar {
+      height: 56px;
+      background: var(--panel);
+      border-bottom: 1px solid var(--line);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 24px;
+      position: sticky;
+      top: 0;
+      z-index: 3;
+    }
+
+    .userbox {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .content {
+      padding: 24px;
+      max-width: 1360px;
+      margin: 0 auto;
+    }
+
+    .screen {
+      margin-bottom: 40px;
+      scroll-margin-top: 72px;
+    }
+
+    .screen-header {
+      display: flex;
+      justify-content: space-between;
+      gap: 16px;
+      align-items: flex-end;
+      margin-bottom: 12px;
+    }
+
+    .screen-title {
+      margin: 0;
+      font-size: 22px;
+      letter-spacing: 0;
+    }
+
+    .screen-note {
+      color: var(--muted);
+      margin: 4px 0 0;
+    }
+
+    .toolbar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      box-shadow: var(--shadow);
+      margin-bottom: 12px;
+    }
+
+    .panel-title {
+      margin: 0;
+      padding: 10px 14px;
+      border-bottom: 1px solid var(--line);
+      background: var(--head);
+      font-size: 15px;
+      font-weight: 700;
+    }
+
+    .panel-body {
+      padding: 14px;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .grid.two {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .grid.three {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .field {
+      min-width: 0;
+    }
+
+    label {
+      display: block;
+      font-size: 12px;
+      font-weight: 700;
+      color: #344054;
+      margin-bottom: 4px;
+    }
+
+    input, select, textarea {
+      width: 100%;
+      border: 1px solid var(--line-strong);
+      border-radius: 4px;
+      padding: 8px 9px;
+      min-height: 36px;
+      background: #fff;
+      color: var(--text);
+      font: inherit;
+    }
+
+    textarea {
+      resize: vertical;
+      min-height: 74px;
+    }
+
+    input[disabled], select[disabled], textarea[disabled] {
+      background: var(--disabled);
+      color: #667085;
+    }
+
+    .btn {
+      border: 1px solid var(--line-strong);
+      background: #fff;
+      color: var(--text);
+      min-height: 36px;
+      padding: 7px 12px;
+      border-radius: 4px;
+      font-weight: 700;
+      cursor: default;
+      white-space: nowrap;
+    }
+
+    .btn.primary {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #fff;
+    }
+
+    .btn.primary.dark {
+      background: var(--accent-dark);
+      border-color: var(--accent-dark);
+    }
+
+    .btn.danger {
+      background: var(--danger);
+      border-color: var(--danger);
+      color: #fff;
+    }
+
+    .btn.ghost {
+      background: transparent;
+    }
+
+    .btn.disabled {
+      background: var(--disabled);
+      color: #667085;
+      border-color: var(--line);
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      table-layout: fixed;
+    }
+
+    th, td {
+      border-bottom: 1px solid var(--line);
+      padding: 9px 10px;
+      text-align: left;
+      vertical-align: middle;
+      word-break: break-word;
+    }
+
+    th {
+      background: var(--head);
+      color: #344054;
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    tr:last-child td {
+      border-bottom: 0;
+    }
+
+    .num {
+      text-align: right;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .status {
+      display: inline-flex;
+      align-items: center;
+      min-height: 24px;
+      padding: 2px 8px;
+      border-radius: 999px;
+      font-weight: 700;
+      font-size: 12px;
+      border: 1px solid transparent;
+    }
+
+    .summary {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+
+    .metric {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      padding: 12px;
+      box-shadow: var(--shadow);
+    }
+
+    .metric-label {
+      color: var(--muted);
+      font-size: 12px;
+      margin-bottom: 4px;
+    }
+
+    .metric-value {
+      font-size: 22px;
+      font-weight: 700;
+      line-height: 1.2;
+    }
+
+    .tabs {
+      display: flex;
+      gap: 4px;
+      border-bottom: 1px solid var(--line);
+      margin-bottom: 12px;
+    }
+
+    .tab {
+      padding: 9px 12px;
+      border: 1px solid transparent;
+      border-bottom: 0;
+      border-radius: 6px 6px 0 0;
+      color: var(--muted);
+      font-weight: 700;
+    }
+
+    .tab.active {
+      color: var(--accent-dark);
+      background: #fff;
+      border-color: var(--line);
+    }
+
+    .calendar {
+      display: grid;
+      grid-template-columns: repeat(7, minmax(0, 1fr));
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      overflow: hidden;
+      background: var(--panel);
+    }
+
+    .calendar-head,
+    .calendar-day {
+      min-height: 48px;
+      border-right: 1px solid var(--line);
+      border-bottom: 1px solid var(--line);
+      padding: 8px;
+    }
+
+    .calendar-head {
+      min-height: 36px;
+      background: var(--head);
+      font-size: 12px;
+      font-weight: 700;
+      color: #344054;
+    }
+
+    .calendar-day:nth-child(7n) {
+      border-right: 0;
+    }
+
+    .day-num {
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+
+    .day-meta {
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .info-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 10px 14px;
+    }
+
+    .info-item {
+      min-width: 0;
+    }
+
+    .info-label {
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .info-value {
+      margin-top: 2px;
+      font-weight: 700;
+    }
+
+    .alert {
+      border: 1px solid #f1d36b;
+      background: var(--warn-bg);
+      color: #604000;
+      border-radius: 6px;
+      padding: 10px 12px;
+      margin-bottom: 12px;
+    }
+
+    .error {
+      border-color: #f5b5ae;
+      background: var(--danger-bg);
+      color: var(--danger);
+    }
+
+    .login-wrap {
+      display: grid;
+      grid-template-columns: minmax(280px, 420px) minmax(0, 1fr);
+      gap: 24px;
+      align-items: stretch;
+    }
+
+    .login-panel {
+      padding: 22px;
+    }
+
+    .mock-note {
+      background: #eaf1ff;
+      border: 1px solid #b9cffc;
+      color: #174ea6;
+      border-radius: 6px;
+      padding: 10px 12px;
+      margin-bottom: 16px;
+    }
+
+    @media (max-width: 980px) {
+      .app {
+        grid-template-columns: 1fr;
+      }
+
+      .sidebar {
+        position: static;
+        height: auto;
+      }
+
+      .topbar {
+        position: static;
+      }
+
+      .grid,
+      .grid.two,
+      .grid.three,
+      .summary,
+      .login-wrap {
+        grid-template-columns: 1fr;
+      }
+
+      .screen-header {
+        align-items: stretch;
+        flex-direction: column;
+      }
+    }
+
+@media print { .toolbar { display:none; } .content { padding:0; } }
+
+  /* 狭い表示でも操作部品が収まるようパネルの余白を縮小する。 */
+  .login-wrap { container-type: inline-size; }
+  @container (max-width: 200px) {
+    .login-panel { padding: 8px; }
+    .login-panel .panel-body { padding: 8px; }
+  }
+/* 画面表示共通ルール */
+.display-number,.num{ text-align:right; font-variant-numeric:tabular-nums; white-space:nowrap; }
+.display-temporal{ text-align:center; font-variant-numeric:tabular-nums; white-space:nowrap; }
+input,select,textarea{ text-align:left; }
+.info-value:not(.display-number):not(.display-temporal){ text-align:left; overflow-wrap:anywhere; }
+textarea{ white-space:pre-wrap; overflow-wrap:anywhere; }
+.day-num{ text-align:right; } .day-meta{ text-align:left; font-variant-numeric:tabular-nums; } .day-meta.display-number{ text-align:right; }
+
+/* WORK-087: ログインを中央に置き、PW欄と表示操作の間に8px確保する。 */
+.login-wrap { grid-template-columns: minmax(0, 420px); justify-content: center; }
+.login-panel #password + .btn { margin-top: 8px; }
+</style>
+<div class="content"><p class="mock-note">画面構成と表示優先度を確認する静的モックです。</p><section id="login" class="screen">
+          <div class="screen-header">
+            <div>
+              <h1 class="screen-title">S-001 ログイン画面</h1>
+              <p class="screen-note">社員、上長、管理者がログインする。</p>
+            </div>
+          </div>
+          <div class="login-wrap">
+            <div class="panel login-panel">
+              <h2 class="panel-title">ログイン</h2>
+              <div class="panel-body">
+
+                <div class="field">
+                  <label for="login-id">ログインID（必須）</label>
+                  <input id="login-id" value="user@01" aria-invalid="true" aria-describedby="login-id-error"><p id="login-id-error" class="alert error">ログインIDが不正です</p>
+                </div>
+                <div class="field" style="margin-top:12px">
+                  <label for="password">パスワード（必須）</label>
+                  <input id="password" type="password" value=""><button type="button" class="btn" aria-label="パスワードを表示">表示</button>
+                </div>
+                <div class="toolbar" style="margin-top:16px">
+                  <button class="btn primary">ログイン</button>
+                </div>
+              </div>
+            </div>
+            <div class="panel">
+              <h2 class="panel-title">初期ユーザー例</h2>
+              <div class="panel-body">
+                <table>
+                  <thead>
+                    <tr><th>ロール</th><th>ログインID</th><th>初期表示</th></tr>
+                  </thead>
+                  <tbody>
+                    <tr><td>社員</td><td>employee001</td><td>日報カレンダー・一覧</td></tr>
+                    <tr><td>上長</td><td>manager001</td><td>日報カレンダー・一覧</td></tr>
+                    <tr><td>管理者</td><td>admin001</td><td>日報カレンダー・一覧</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </section></div>
+
+
+
+</template></div></section><section id="mock-login-auth-error" role="tabpanel" aria-labelledby="tab-mock-login-auth-error"><div class="mock-surface"><template shadowrootmode="open">
+
+<style>
+    :host {
+      --bg: #f4f6f8;
+      --panel: #ffffff;
+      --line: #d7dde5;
+      --line-strong: #aeb8c5;
+      --text: #1f2933;
+      --muted: #627386;
+      --head: #eef2f6;
+      --accent: #1f6feb;
+      --accent-dark: #174ea6;
+      --danger: #b42318;
+      --danger-bg: #fff1f0;
+      --warn: #8a5a00;
+      --warn-bg: #fff8db;
+      --ok: #176b43;
+      --ok-bg: #e9f7ef;
+      --disabled: #e4e8ee;
+      --shadow: 0 1px 2px rgba(16, 24, 40, 0.08);
+      font-family: "Segoe UI", "Yu Gothic UI", "Meiryo", sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    :host {
+      display: block;
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-size: 14px;
+      line-height: 1.5;
+    }
+
+    a {
+      color: inherit;
+      text-decoration: none;
+    }
+
+    .app {
+      display: grid;
+      grid-template-columns: 248px minmax(0, 1fr);
+      min-height: 100vh;
+    }
+
+    .sidebar {
+      background: #26313f;
+      color: #eef3f8;
+      padding: 18px 14px;
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      overflow: auto;
+    }
+
+    .brand {
+      font-size: 18px;
+      font-weight: 700;
+      margin: 0 0 4px;
+    }
+
+    .subtitle {
+      color: #b8c4d2;
+      font-size: 12px;
+      margin-bottom: 18px;
+    }
+
+    .nav-group {
+      margin-top: 18px;
+    }
+
+    .nav-title {
+      color: #b8c4d2;
+      font-size: 12px;
+      font-weight: 700;
+      margin: 0 0 8px;
+    }
+
+    .nav-link {
+      display: block;
+      padding: 8px 10px;
+      border-radius: 6px;
+      color: #eef3f8;
+      margin-bottom: 4px;
+    }
+
+    .nav-link:hover {
+      background: rgba(255,255,255,0.11);
+    }
+
+    .main {
+      min-width: 0;
+    }
+
+    .topbar {
+      height: 56px;
+      background: var(--panel);
+      border-bottom: 1px solid var(--line);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 24px;
+      position: sticky;
+      top: 0;
+      z-index: 3;
+    }
+
+    .userbox {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .content {
+      padding: 24px;
+      max-width: 1360px;
+      margin: 0 auto;
+    }
+
+    .screen {
+      margin-bottom: 40px;
+      scroll-margin-top: 72px;
+    }
+
+    .screen-header {
+      display: flex;
+      justify-content: space-between;
+      gap: 16px;
+      align-items: flex-end;
+      margin-bottom: 12px;
+    }
+
+    .screen-title {
+      margin: 0;
+      font-size: 22px;
+      letter-spacing: 0;
+    }
+
+    .screen-note {
+      color: var(--muted);
+      margin: 4px 0 0;
+    }
+
+    .toolbar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      box-shadow: var(--shadow);
+      margin-bottom: 12px;
+    }
+
+    .panel-title {
+      margin: 0;
+      padding: 10px 14px;
+      border-bottom: 1px solid var(--line);
+      background: var(--head);
+      font-size: 15px;
+      font-weight: 700;
+    }
+
+    .panel-body {
+      padding: 14px;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .grid.two {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .grid.three {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .field {
+      min-width: 0;
+    }
+
+    label {
+      display: block;
+      font-size: 12px;
+      font-weight: 700;
+      color: #344054;
+      margin-bottom: 4px;
+    }
+
+    input, select, textarea {
+      width: 100%;
+      border: 1px solid var(--line-strong);
+      border-radius: 4px;
+      padding: 8px 9px;
+      min-height: 36px;
+      background: #fff;
+      color: var(--text);
+      font: inherit;
+    }
+
+    textarea {
+      resize: vertical;
+      min-height: 74px;
+    }
+
+    input[disabled], select[disabled], textarea[disabled] {
+      background: var(--disabled);
+      color: #667085;
+    }
+
+    .btn {
+      border: 1px solid var(--line-strong);
+      background: #fff;
+      color: var(--text);
+      min-height: 36px;
+      padding: 7px 12px;
+      border-radius: 4px;
+      font-weight: 700;
+      cursor: default;
+      white-space: nowrap;
+    }
+
+    .btn.primary {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #fff;
+    }
+
+    .btn.primary.dark {
+      background: var(--accent-dark);
+      border-color: var(--accent-dark);
+    }
+
+    .btn.danger {
+      background: var(--danger);
+      border-color: var(--danger);
+      color: #fff;
+    }
+
+    .btn.ghost {
+      background: transparent;
+    }
+
+    .btn.disabled {
+      background: var(--disabled);
+      color: #667085;
+      border-color: var(--line);
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      table-layout: fixed;
+    }
+
+    th, td {
+      border-bottom: 1px solid var(--line);
+      padding: 9px 10px;
+      text-align: left;
+      vertical-align: middle;
+      word-break: break-word;
+    }
+
+    th {
+      background: var(--head);
+      color: #344054;
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    tr:last-child td {
+      border-bottom: 0;
+    }
+
+    .num {
+      text-align: right;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .status {
+      display: inline-flex;
+      align-items: center;
+      min-height: 24px;
+      padding: 2px 8px;
+      border-radius: 999px;
+      font-weight: 700;
+      font-size: 12px;
+      border: 1px solid transparent;
+    }
+
+    .summary {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+
+    .metric {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      padding: 12px;
+      box-shadow: var(--shadow);
+    }
+
+    .metric-label {
+      color: var(--muted);
+      font-size: 12px;
+      margin-bottom: 4px;
+    }
+
+    .metric-value {
+      font-size: 22px;
+      font-weight: 700;
+      line-height: 1.2;
+    }
+
+    .tabs {
+      display: flex;
+      gap: 4px;
+      border-bottom: 1px solid var(--line);
+      margin-bottom: 12px;
+    }
+
+    .tab {
+      padding: 9px 12px;
+      border: 1px solid transparent;
+      border-bottom: 0;
+      border-radius: 6px 6px 0 0;
+      color: var(--muted);
+      font-weight: 700;
+    }
+
+    .tab.active {
+      color: var(--accent-dark);
+      background: #fff;
+      border-color: var(--line);
+    }
+
+    .calendar {
+      display: grid;
+      grid-template-columns: repeat(7, minmax(0, 1fr));
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      overflow: hidden;
+      background: var(--panel);
+    }
+
+    .calendar-head,
+    .calendar-day {
+      min-height: 48px;
+      border-right: 1px solid var(--line);
+      border-bottom: 1px solid var(--line);
+      padding: 8px;
+    }
+
+    .calendar-head {
+      min-height: 36px;
+      background: var(--head);
+      font-size: 12px;
+      font-weight: 700;
+      color: #344054;
+    }
+
+    .calendar-day:nth-child(7n) {
+      border-right: 0;
+    }
+
+    .day-num {
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+
+    .day-meta {
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .info-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 10px 14px;
+    }
+
+    .info-item {
+      min-width: 0;
+    }
+
+    .info-label {
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .info-value {
+      margin-top: 2px;
+      font-weight: 700;
+    }
+
+    .alert {
+      border: 1px solid #f1d36b;
+      background: var(--warn-bg);
+      color: #604000;
+      border-radius: 6px;
+      padding: 10px 12px;
+      margin-bottom: 12px;
+    }
+
+    .error {
+      border-color: #f5b5ae;
+      background: var(--danger-bg);
+      color: var(--danger);
+    }
+
+    .login-wrap {
+      display: grid;
+      grid-template-columns: minmax(280px, 420px) minmax(0, 1fr);
+      gap: 24px;
+      align-items: stretch;
+    }
+
+    .login-panel {
+      padding: 22px;
+    }
+
+    .mock-note {
+      background: #eaf1ff;
+      border: 1px solid #b9cffc;
+      color: #174ea6;
+      border-radius: 6px;
+      padding: 10px 12px;
+      margin-bottom: 16px;
+    }
+
+    @media (max-width: 980px) {
+      .app {
+        grid-template-columns: 1fr;
+      }
+
+      .sidebar {
+        position: static;
+        height: auto;
+      }
+
+      .topbar {
+        position: static;
+      }
+
+      .grid,
+      .grid.two,
+      .grid.three,
+      .summary,
+      .login-wrap {
+        grid-template-columns: 1fr;
+      }
+
+      .screen-header {
+        align-items: stretch;
+        flex-direction: column;
+      }
+    }
+
+@media print { .toolbar { display:none; } .content { padding:0; } }
+
+  /* 狭い表示でも操作部品が収まるようパネルの余白を縮小する。 */
+  .login-wrap { container-type: inline-size; }
+  @container (max-width: 200px) {
+    .login-panel { padding: 8px; }
+    .login-panel .panel-body { padding: 8px; }
+  }
+/* 画面表示共通ルール */
+.display-number,.num{ text-align:right; font-variant-numeric:tabular-nums; white-space:nowrap; }
+.display-temporal{ text-align:center; font-variant-numeric:tabular-nums; white-space:nowrap; }
+input,select,textarea{ text-align:left; }
+.info-value:not(.display-number):not(.display-temporal){ text-align:left; overflow-wrap:anywhere; }
+textarea{ white-space:pre-wrap; overflow-wrap:anywhere; }
+.day-num{ text-align:right; } .day-meta{ text-align:left; font-variant-numeric:tabular-nums; } .day-meta.display-number{ text-align:right; }
+
+/* WORK-087: ログインを中央に置き、PW欄と表示操作の間に8px確保する。 */
+.login-wrap { grid-template-columns: minmax(0, 420px); justify-content: center; }
+.login-panel #password + .btn { margin-top: 8px; }
+</style>
+<div class="content"><p class="mock-note">画面構成と表示優先度を確認する静的モックです。</p><section id="login" class="screen">
+          <div class="screen-header">
+            <div>
+              <h1 class="screen-title">S-001 ログイン画面</h1>
+              <p class="screen-note">社員、上長、管理者がログインする。</p>
+            </div>
+          </div>
+          <div class="login-wrap">
+            <div class="panel login-panel">
+              <h2 class="panel-title">ログイン</h2>
+              <div class="panel-body">
+                <div class="alert error">ログインIDまたはパスワードが正しくありません。</div>
+                <div class="field">
+                  <label for="login-id">ログインID（必須）</label>
+                  <input id="login-id" value="employee001">
+                </div>
+                <div class="field" style="margin-top:12px">
+                  <label for="password">パスワード（必須）</label>
+                  <input id="password" type="password" value=""><button type="button" class="btn" aria-label="パスワードを表示">表示</button>
+                </div>
+                <div class="toolbar" style="margin-top:16px">
+                  <button class="btn primary">ログイン</button>
+                </div>
+              </div>
+            </div>
+            <div class="panel">
+              <h2 class="panel-title">初期ユーザー例</h2>
+              <div class="panel-body">
+                <table>
+                  <thead>
+                    <tr><th>ロール</th><th>ログインID</th><th>初期表示</th></tr>
+                  </thead>
+                  <tbody>
+                    <tr><td>社員</td><td>employee001</td><td>日報カレンダー・一覧</td></tr>
+                    <tr><td>上長</td><td>manager001</td><td>日報カレンダー・一覧</td></tr>
+                    <tr><td>管理者</td><td>admin001</td><td>日報カレンダー・一覧</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </section></div>
+
+
+
+</template></div></section></section>
+  <footer>印刷時は選択中のタブと画面を出力します。</footer>
+</article>
+<script>
+// 同一ファイル内の仕様・入力・業務ルール・モックとURLを同期する。
+for (const surface of document.querySelectorAll('.mock-surface')) {
+  if (!surface.shadowRoot) {
+    const template = surface.querySelector('template');
+    const shadow = surface.attachShadow({ mode: 'open' });
+    shadow.append(template.content.cloneNode(true));
+    template.remove();
+  }
+}
+const primary = document.querySelector('[data-tabs="primary"]');
+const secondary = document.querySelector('[data-tabs="screens"]');
+function selectGroup(group, selected) {
+  if (!group) return;
+  for (const tab of group.querySelectorAll('[role="tab"]')) {
+    const active = tab.getAttribute('aria-controls') === selected;
+    tab.setAttribute('aria-selected', String(active));
+    tab.tabIndex = active ? 0 : -1;
+    document.getElementById(tab.getAttribute('aria-controls')).hidden = !active;
+  }
+}
+function showHash() {
+  const hash = location.hash.slice(1);
+  const view = hash.startsWith('mock') ? 'mock' : hash.startsWith('input') ? 'input' : hash.startsWith('rules') ? 'rules' : 'spec';
+  selectGroup(primary, view);
+  document.querySelector('.document').dataset.view = view;
+  if (secondary) {
+    const ids = [...secondary.querySelectorAll('[role="tab"]')].map(tab => tab.getAttribute('aria-controls'));
+    selectGroup(secondary, ids.includes(hash) ? hash : ids[0]);
+  }
+}
+for (const group of [primary, secondary].filter(Boolean)) {
+  const tabs = [...group.querySelectorAll('[role="tab"]')];
+  function select(tab) { history.replaceState(null, '', '#' + tab.getAttribute('aria-controls')); showHash(); }
+  tabs.forEach((tab, index) => {
+    tab.addEventListener('click', () => select(tab));
+    tab.addEventListener('keydown', event => {
+      if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
+      event.preventDefault();
+      const target = event.key === 'Home' ? 0 : event.key === 'End' ? tabs.length - 1 : (index + (event.key === 'ArrowRight' ? 1 : -1) + tabs.length) % tabs.length;
+      tabs[target].focus(); select(tabs[target]);
+    });
+  });
+}
+window.addEventListener('hashchange', showHash);
+showHash();
+</script>
+</body></html>
