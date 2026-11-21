@@ -1,0 +1,9 @@
+{
+  "config": {
+    "default": true,
+    // Japanese specification tables commonly exceed 80 characters.
+    "MD013": false,
+    // Existing specification tables use different column alignment styles.
+    "MD060": false
+  }
+}
